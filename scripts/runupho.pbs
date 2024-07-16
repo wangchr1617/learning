@@ -1,0 +1,16 @@
+#PBS -N upho
+#PBS -l nodes=1:ppn=24
+#PBS -l walltime=24:00:00
+#PBS -q quick
+#PBS -V
+#PBS -S /bin/bash 
+
+NP=`cat $PBS_NODEFILE | wc -l`
+NN=`cat $PBS_NODEFILE | sort | uniq | tee /tmp/nodes.$$ | wc -l`
+    
+cat $PBS_NODEFILE > /tmp/nodefile.$$
+cd $PBS_O_WORKDIR
+ulimit -s unlimited
+
+EXEC=/home/changruiwang-ICME/anaconda3/envs/nep/bin/upho_weights
+$EXEC band.conf > output

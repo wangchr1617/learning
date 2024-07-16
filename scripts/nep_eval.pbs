@@ -1,0 +1,22 @@
+#PBS -N eval
+#PBS -l nodes=1:ppn=32
+#PBS -l walltime=24:00:00
+#PBS -q quick
+#PBS -V
+#PBS -S /bin/bash 
+
+NP=`cat $PBS_NODEFILE | wc -l`
+NN=`cat $PBS_NODEFILE | sort | uniq | tee /tmp/nodes.$$ | wc -l`
+    
+cat $PBS_NODEFILE > /tmp/nodefile.$$
+cd $PBS_O_WORKDIR
+ulimit -s unlimited
+
+EXEC=/home/changruiwang-ICME/anaconda3/envs/nep/bin/python
+mpirun -machinefile $PBS_NODEFILE -np $NP $EXEC nep_evaluate.py nep_1.txt model.xyz 1 > log
+mpirun -machinefile $PBS_NODEFILE -np $NP $EXEC nep_evaluate.py nep_2.txt model.xyz 2 >> log
+mpirun -machinefile $PBS_NODEFILE -np $NP $EXEC nep_evaluate.py nep_3.txt model.xyz 3 >> log
+grep Lattice model.xyz | awk '{print $21}' | cut -d '=' -f 2 > dft_energy.txt
+grep Lattice model.xyz | awk '{print $20}' | cut -d '=' -f 2 > config_type.txt
+grep -B 1 'Lattice' model.xyz | grep -v 'Lattice' | grep -v -- '--' > atoms_num.txt
+

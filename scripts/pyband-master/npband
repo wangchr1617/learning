@@ -1,0 +1,929 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import sys
+import re
+import numpy as np
+import argparse
+from collections import Iterable
+
+import matplotlib as mpl
+mpl.use('agg')
+
+import matplotlib.pyplot as plt
+from matplotlib.ticker import AutoMinorLocator
+from ase.io import read, write
+
+############################################################
+
+def string2index(string):
+    if ':' not in string:
+        raise ValueError("Invalid slice string!")
+    i = []
+    for s in string.split(':'):
+        if s == '':
+            i.append(None)
+        else:
+            i.append(int(s))
+    i += (3 - len(i)) * [None]
+    return slice(*i)
+
+############################################################
+class procar(object):
+    '''
+    A class for dealing with VASP PROCAR file.
+    '''
+    def __init__(self, inf='PROCAR', lsoc=False):
+        '''
+        Initialization
+        '''
+
+        self._fname  = inf
+        # the directory containing the input file
+        self._dname  = os.path.dirname(inf)
+        if self._dname == '':
+            self._dname = '.'
+
+        self._lsoc   = lsoc
+
+        try:
+            self._procar = open(self._fname, 'r')
+        except:
+            raise IOError('Failed to open %s' % self._fname)
+
+        self.readProcar()
+
+        # parameters usefull for dos generation
+        self._sigma  = 0.05
+        self._nedos  = 3000
+        # Total DOS for each KS energy, with shape (NSPIN, NKPTS, NBANDS, NEDOS)
+        self._tdos   = None
+        # Total DOS with shape (NSPIN, NEDOS)
+        self._totalDOS = None
+
+        self._spd_index = {
+            's' : 0,
+            'py' : 1, 'pz' : 2, 'px' : 3,
+            'dxy' : 4, 'dyz' : 5, 'dz2' : 6, 'dxz' : 7, 'dx2' : 8
+        }
+
+        # the basis vectors of the cell
+        self._cell  = None
+        self._kpath = None
+
+    def readProcar(self):
+        '''
+        Extract the info from PROCAR.
+        '''
+
+        inp = [line for line in self._procar if line.strip()]
+
+        # when the band number is too large, there will be no space between ";" and
+        # the actual band number. A bug found by Homlee Guo.
+        # Here, #kpts, #bands and #ions are all integers
+        self._nkpts, self._nbands, self._nions = [int(xx) for xx in re.sub('[^0-9]', ' ', inp[1]).split()]
+
+        # band projectron on each atoms or s/p/d orbitals
+        self._aproj = np.asarray([line.split()[1:-1] for line in inp
+                                  if not re.search('[a-zA-Z]', line)],
+                                  dtype=float)
+        # k-points weights of each k-points
+        self._kptw = np.asarray([line.split()[-1] for line in inp if 'weight' in line], dtype=float)
+        # k-points vectors of each k-points
+        self._kptv = np.asarray([line.split()[-6:-3] for line in inp if 'weight' in line], dtype=float)
+        # band energies
+        self._eband = np.asarray([line.split()[-4] for line in inp
+                                  if 'occ.' in line], dtype=float)
+
+        self._nlmax = self._aproj.shape[-1]
+        self._nspin = self._aproj.shape[0] // (self._nkpts * self._nbands * self._nions)
+        self._nspin //= 4 if self._lsoc else 1
+
+        if self._lsoc:
+            self._aproj.resize(self._nspin, self._nkpts, self._nbands, 4, self._nions, self._nlmax)
+            self._aproj = self._aproj[:,:,:,0,:,:]
+        else:
+            self._aproj.resize(self._nspin, self._nkpts, self._nbands, self._nions, self._nlmax)
+
+        self._kptw.shape  = (self._nspin, self._nkpts)
+        self._kptw_org    = self._kptw.copy()
+        self._eband.shape = (self._nspin, self._nkpts, self._nbands)
+
+        # close the PROCAR
+        self._procar.close()
+
+    def get_nkpts(self):
+        '''
+        get number of kpoints.
+        '''
+        return self._nkpts
+
+    def get_nspin(self):
+        '''
+        get number of spin
+        '''
+        return self._nspin
+
+    def get_nbands(self):
+        '''
+        get number of bands
+        '''
+        return self._nbands
+
+    def get_band_energies(self):
+        '''
+        Return the band energies
+        '''
+        return self._eband.copy()
+
+    def get_kpath(self, cell=None, nkseg=None):
+        '''
+        Construct k-point path, find out the k-path boundary if possible.
+        '''
+
+        if self._kpath is None:
+            if self._cell is None:
+                if cell is None:
+                    try:
+                        self._cell = read(self._dname + '/POSCAR', format='vasp').cell.copy()
+                    except:
+                        raise ValueError('Error in reading cell info from POSCAR!')
+                else:
+                    self._cell = np.array(cell, dtype=float)
+                    assert self._cell.shape == (3,3)
+
+            if nkseg is None:
+                if os.path.isfile(self._dname + "/KPOINTS"):
+                    kfile = open(self._dname + "/KPOINTS").readlines()
+                    if kfile[2][0].upper() == 'L':
+                        nkseg = int(kfile[1].split()[0])
+                    else:
+                        raise ValueError('Error reading number of k-points from KPOINTS')
+
+            assert isinstance(nkseg, int) and nkseg > 0
+
+            nsec  = self._nkpts // nkseg
+            icell = np.linalg.inv(self._cell).T
+
+            # vkpts_d = np.diff(self._kptv, axis=0)
+            # self._kpath     = np.zeros(self._nkpts, dtype=float)
+            # self._kpath[1:] = np.cumsum(np.linalg.norm(np.dot(vkpts_d, icell), axis=1))
+
+            v = self._kptv.copy()
+            for ii in range(nsec):
+                ki = ii * nkseg
+                kj = (ii + 1) * nkseg
+                v[ki:kj,:] -= v[ki]
+
+            self._kpath = np.linalg.norm(np.dot(v, icell), axis=1)
+            for ii in range(1, nsec):
+                ki = ii * nkseg
+                kj = (ii + 1) * nkseg
+                self._kpath[ki:kj] += self._kpath[ki - 1]
+
+            self._kbound =  np.concatenate((self._kpath[0::nkseg], [self._kpath[-1],]))
+
+        return self._kpath, self._kbound
+
+    def isSoc(self):
+        return True if self._lsoc else False
+
+    def get_sigma(self):
+        '''
+        return dos brodening parameter
+        '''
+        return self._sigma
+    def set_sigma(self, sigma):
+        '''
+        set dos brodening parameter
+        '''
+        self._sigma = sigma
+
+        # re-generate the DOS with the new SIGMA
+        if self._tdos is not None:
+            if not np.isclose(sigma, self._sigma):
+                self.init_dos()
+
+    def get_nedos(self): return self._nedos
+    def set_nedos(self, nedos):
+        '''
+        set number of point in smooth DOS
+        '''
+        assert isinstance(nedos, int), 'NEDOS shoule be int!'
+        self._nedos = nedos
+
+        # re-generate the DOS with the new NEDOS
+        if self._tdos is not None:
+            if self._nedos != nedos:
+                self.init_dos()
+
+    def get_kpts_weight(self):
+        '''
+        return the k-points weights
+        '''
+        return self._kptw.copy()
+    def set_kpts_weight(self, kptw):
+        '''
+        set the k-points weights
+        '''
+        kptw = np.array(kptw)
+        assert kptw.shape == self._kptw.shape
+        self._kptw = kptw
+
+        # re-generate the DOS with the new kptw
+        if self._tdos is not None:
+            self.init_dos()
+    def restore_kpts_weight(self, kptw):
+        '''
+        set the k-points weights
+        '''
+        self._kptw = self._kptw_org.copy()
+
+        # re-generate the DOS with the new kptw
+        if self._tdos is not None:
+            self.init_dos()
+
+    def init_dos(self):
+        '''
+        dos initialization
+        '''
+
+        # print 'calculating dos'
+        emin =  self._eband.min()
+        emax =  self._eband.max()
+        eran = emax - emin
+        emin = emin - eran * 0.05
+        emax = emax + eran * 0.05
+
+        self._xen  = np.linspace(emin, emax, self._nedos)
+        self._tdos = np.empty((self._nspin, self._nkpts, self._nbands, self._nedos))
+
+        for ispin in range(self._nspin):
+            sign = 1 if ispin == 0 else -1
+            for ikpt in range(self._nkpts):
+                for iband in range(self._nbands):
+                    x0 = self._eband[ispin, ikpt, iband]
+                    self._tdos[ispin, ikpt, iband] = sign * self._kptw[ispin,ikpt] \
+                              * gaussian_smearing_org(self._xen, x0, self._sigma)\
+
+    def translate_selection(self, atoms=':', kpts=':', spd=':'):
+        '''
+        '''
+        # string is Iterable too
+        assert (isinstance(atoms, int)
+             or isinstance(atoms, Iterable)
+             or isinstance(atoms, str))
+        assert (isinstance(kpts, int)
+             or isinstance(kpts, Iterable)
+             or isinstance(kpts, str))
+        assert (isinstance(spd, int)
+             or isinstance(spd, Iterable)
+             or isinstance(kpts, str))
+
+        if isinstance(atoms, str):
+            atoms = string2index(atoms)
+        if isinstance(kpts, str):
+            kpts = string2index(kpts)
+        if isinstance(spd, str):
+            spd = string2index(spd)
+
+        # remove duplicate selections
+        if isinstance(atoms, Iterable):
+            atoms = list(set(atoms))
+        if isinstance(kpts, Iterable):
+            kpts = list(set(kpts))
+        if isinstance(spd, Iterable):
+            spd = [ii if isinstance(ii, int) else self._spd_index[ii]
+                   for ii in spd]
+            spd = list(set(spd))
+
+        return atoms, kpts, spd
+
+    def get_proj(self):
+        '''
+        get the partial weight.
+        '''
+        return self._aproj.copy()
+
+    def get_total_dos(self):
+        '''
+        The total DOS
+        '''
+        if self._tdos is None:
+            self.init_dos()
+
+        if self._totalDOS is None:
+            self._totalDOS = np.sum(self._tdos, axis=(1, 2))
+
+        return self._xen, self._totalDOS
+
+    def get_pw(self, atoms=':', kpts=':', spd=':'):
+        '''
+        Get site/k-points/spd-orbital projected weight for each KS orbital.
+
+        atoms : selected atoms index.
+                Valid values:
+                    ":"       -> for all atoms
+                    "0::2"    -> for even index atoms
+                    [0, 1, 2] -> atom indices specified by list
+                    0         -> atom indices specified by integer
+
+        kpts  : selected k-points index
+                Valid values:
+                    ":"       -> for all k-points
+                    "0::2"    -> for even index k-points
+                    [0, 1, 2] -> k-points indices specified by list
+                    0         -> k-points indices specified by integer
+
+        spd   : selected s/p/d-orbitals, the s/p/d-orbital and the corresponding
+                index are:
+                    's' : 0,
+                    'py' : 1, 'pz' : 2, 'px' : 3,
+                    'dxy' : 4, 'dyz' : 5, 'dz2' : 6, 'dxz' : 7, 'dx2' : 8
+
+                Valid values:
+                    ":"         -> for all s/p/d-orbitals
+                    "0::2"      -> for even index
+                    [0, 1, 2]   -> s/p/d-orbitals specified by list of integer
+                    ['s', 'py'] -> s/p/d-orbitals specified by list of names
+                    0           -> s/p/d-orbitals indices specified by integer
+        '''
+
+        atoms, kpts, spd = self.translate_selection(atoms, kpts, spd)
+
+        # problem with mixed advanced indexing and basic indexing, see scipy
+        # documents for reference
+        # https://docs.scipy.org/doc/numpy/reference/arrays.indexing.html#combining-advanced-and-basic-indexing
+        #
+        # a=np.zeros((2,3,4)); b=np.ones((3,4)); I=np.array([0,1])
+        # b[:,I].shape = (3, 2)
+        # a[0,:,I].shape = (2, 3)
+
+        # Consider indexing a 3D array arr with shape (X, Y, Z):
+        #
+        # arr[:, [0, 1], 0] has shape (X, 2).
+        # arr[[0, 1], 0, :] has shape (2, Z).
+        # arr[0, :, [0, 1]] has shape (2, Y), not (Y, 2)
+
+        pw = []
+        for ispin in range(self._nspin):
+            p0 = self._aproj[ispin, kpts]
+            # sum over the s/p/d projection
+            p0 = np.sum(p0[..., spd],   axis=-1)
+            # sum over the site projection
+            p0 = np.sum(p0[..., atoms], axis=-1)
+
+            pw.append(p0)
+
+        return np.array(pw, dtype=float)
+
+    def get_pdos(self, atoms=':', kpts=':', spd=':'):
+        '''
+        Get site/k-points/spd-orbital projected partial density of states (PDOS)
+        '''
+
+        if self._tdos is None:
+            self.init_dos()
+
+        pdos = []
+        proj = self.get_pw(atoms, kpts, spd)
+
+        atoms, kpts, spd = self.translate_selection(atoms, kpts, spd)
+
+        if np.alltrue(
+                np.sort(np.arange(self._nkpts)[kpts]) == np.arange(self._nkpts)
+            ):
+            used_all_kpts = True
+        else:
+            used_all_kpts = False
+
+        for ispin in range(self._nspin):
+            pw = proj[ispin]
+
+            if used_all_kpts:
+                td = self._tdos[ispin, kpts]
+            else:
+                # if not all the k-points are used, then probably we should get
+                # rid of the k-point weights
+                td = self._tdos[ispin, kpts,...] / self._kptw[kpts, np.newaxis, np.newaxis]
+
+            pdos.append(np.sum(pw[...,np.newaxis] * td, axis=(0, 1)))
+
+            # pwht = np.sum(self._aproj[ispin][kpts,:,atoms,spd], axis=(-1, -2))
+            # pdos.append(np.sum(pwht[..., np.newaxis] * self._tdos[ispin][kpts,...], axis=(0, 1)))
+
+        # only return one dos if not spin-polarized
+        # p = pdos[0] if self._nspin == 1 else pdos
+        pdos = np.array(pdos, dtype=float)
+
+        return self._xen, pdos
+
+    def get_pband(self, atoms=':', kpts=':', spd=':',
+                        cell=None,
+                        nkseg=None):
+        '''
+        Construct the band structure from PROCAR. In addition, the
+        site/k-points/spd-orbital projection of each KS orbital will be
+        returned.
+        '''
+
+        k, b = self.get_kpath(cell, nkseg)
+        e = self.get_band_energies()
+        w = self.get_pw(atoms, kpts, spd)
+
+        return k, b, e, w
+
+############################################################
+
+def init_fig(p):
+    '''
+    matplotlib figure initialization
+    '''
+
+    plt.style.use(p.style)
+    # do NOT use unicode minus
+    mpl.rcParams['axes.unicode_minus'] = False
+    fig, axes = plt.subplots(nrows=p.nrows, ncols=p.ncols,
+                             sharex=p.sharex,
+                             sharey=p.sharey)
+    fig.set_size_inches(p.figsize)
+    plt.subplots_adjust(
+            left=p.fleft, right=p.fright,
+            bottom=p.fbottom, top=p.ftop,
+            wspace=p.wspace, hspace=p.hspace)
+
+    axes = [axes] if (p.ncols * p.nrows == 1) else axes.flatten()
+    for ii, ax in enumerate(axes):
+        if p.sharex or p.sharey:
+            ir = ii // p.ncols           # row index of axes
+            ic = ii - ir * p.ncols       # col index of axes
+            if ic == 0:                     # left-most col has ylabel
+                ax.set_ylabel('DOS [arb. units]', fontsize=p.ylabsize,
+                        labelpad=p.ylabpad)
+            if ir == p.nrows - 1:        # bottom row has ylabel
+                ax.set_xlabel('Energy [eV]', fontsize=p.xlabsize,
+                        labelpad=p.ylabpad)
+        else:
+            ax.set_xlabel('Energy [eV]', fontsize=p.xlabsize,
+                        labelpad=p.xlabpad)
+            ax.set_ylabel('DOS [arb. units]', fontsize=p.ylabsize,
+                        labelpad=p.xlabpad)
+
+        # Number of minor ticks
+        ax.xaxis.set_minor_locator(AutoMinorLocator(n=p.nxminor if
+                                   p.nxminor else p.nminor))
+        ax.yaxis.set_minor_locator(AutoMinorLocator(n=p.nyminor if
+                                   p.nyminor else p.nminor))
+        # ticklabel font size
+        ax.tick_params(axis='x', labelsize=p.xticklabsize)
+        ax.tick_params(axis='y', labelsize=p.yticklabsize)
+        
+        if p.showpanel:
+            x, y = p.panelloc
+            ax.text(x, y, '({})'.format(chr(97 + ii)),
+                    ha=p.panelha,
+                    va=p.panelva,
+                    family='monospace',
+                    fontsize=p.panelfontsize,
+                    transform=ax.transAxes
+                    )
+
+    if not p.notight:
+        fig.tight_layout(pad=p.pad, h_pad=p.hpad, w_pad=p.wpad)
+    fig.set_dpi(p.dpi)
+
+    p.fig  = fig
+    p.axes = axes
+
+    return p
+
+def parse_figure_args():
+    '''
+    '''
+    par = argparse.ArgumentParser(add_help=False)
+
+    par.add_argument('-nr', '-nrows',   action='store', dest='nrows',   type=int,   default=1)
+    par.add_argument('-nc', '-ncols',   action='store', dest='ncols',   type=int,   default=1)
+    par.add_argument('-f', '-figsize',  action='store', dest='figsize', type=float, nargs=2,
+                      default=(4.0, 3.0))
+    par.add_argument('-wspace',  action='store', dest='wspace',  type=float,
+                      default=0.2)
+    par.add_argument('-hspace',  action='store', dest='hspace',  type=float,
+                      default=0.2)
+    par.add_argument('-pad',     action='store', dest='pad',     type=float,
+                      default=0.5)
+    par.add_argument('-hpad',    action='store', dest='hpad',    type=float,
+                      default=0.5)
+    par.add_argument('-wpad',    action='store', dest='wpad',    type=float,
+                      default=0.5)
+
+    par.add_argument('-fleft',    action='store', dest='fleft',     type=float,
+                      default=0.05)
+    par.add_argument('-fright',    action='store', dest='fright',   type=float,
+                      default=0.95)
+    par.add_argument('-fbottom',    action='store', dest='fbottom', type=float,
+                      default=0.10)
+    par.add_argument('-ftop',    action='store', dest='ftop',       type=float,
+                      default=0.95)
+
+    par.add_argument('-notight',  action='store_true', dest='notight',
+                      default=False,
+                      help='apply tight layout')
+
+    par.add_argument('-sharex',  action='store_true', dest='sharex',
+                      default=False,
+                      help='Share x axis among the axes.')
+    par.add_argument('-sharey',  action='store_true', dest='sharey',
+                      default=False,
+                      help='Share y axis among the axes.')
+
+    par.add_argument('-xlabsize', action='store', dest='xlabsize',
+                     default=None,
+                     help='Xlabel font size.')
+    par.add_argument('-ylabsize', action='store', dest='ylabsize',
+                     default=None,
+                     help='Ylabel font size.')
+    par.add_argument('-xticklabsize',   action='store', dest='xticklabsize',
+                     default='small',
+                     help='Xtick label font size.')
+    par.add_argument('-yticklabsize',   action='store', dest='yticklabsize',
+                     default='small',
+                     help='Ytick label font size.')
+    par.add_argument('-xlabpad',  action='store', dest='xlabpad',  default=5)
+    par.add_argument('-ylabpad',  action='store', dest='ylabpad',  default=5)
+
+    par.add_argument('-nminor',   action='store', dest='nminor',  type=int,
+                      default=2,
+                      help='Number of minor tick locators.')
+    par.add_argument('-nxminor',  action='store', dest='nxminor', type=int,
+                      default=2,
+                      help='Number of minor xtick locators.')
+    par.add_argument('-nyminor',  action='store', dest='nyminor', type=int,
+                      default=2,
+                      help='Number of minor yick locators.')
+
+    par.add_argument('-style',  action='store', dest='style', type=str,
+                     choices=mpl.style.available,
+                     default='default',
+                     help='Matplotlib style specification.')
+
+    par.add_argument('-dpi',     action='store', dest='dpi',     type=int,
+                      default=300)
+    par.add_argument('-o', '-out',  action='store', dest='out', type=str,
+                     default='dos.png',
+                     help='Output image name')
+
+    par.add_argument('-showpanel', action='store', dest='showpanel', type=str2bool,
+                     default=True)
+    par.add_argument('-panelloc',   action='store', dest='panelloc', nargs=2,
+                     type=float, default=(0.05, 0.95))
+    par.add_argument('-panelha',    action='store', dest='panelha', type=str,
+                     choices=['left', 'right', 'bottom', 'top', 'center'],
+                     default='left')
+    par.add_argument('-panelva',    action='store', dest='panelva', type=str,
+                     choices=['left', 'right', 'bottom', 'top', 'center'],
+                     default='top')
+    par.add_argument('-panelfontsize', action='store', dest='panelfontsize', 
+                      default=None)
+
+    return par
+
+def str2bool(v):
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False  
+    else:       
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+def parse_pdos_arg():
+    '''
+    '''
+    par = argparse.ArgumentParser(add_help=False)
+
+    par.add_argument('-i', '-inp',   action='append', dest='inp',   type=str,
+                     default=[],
+                     help='location of PROCARS')
+    par.add_argument('-a', '-ax',    action='append', dest='ax',    type=int,
+                     default=[],
+                     help='on which axes to plot DOS')
+    par.add_argument('-p', '-pdos',  action='append', dest='pdos',  type=str,
+                     default=[],
+                     help='Atom indices for dos projection')
+    par.add_argument('-pv', '-visible',  action='append', dest='pvisible',
+                     type=str2bool,
+                     default=[],
+                     help='PDOS visible?')
+    par.add_argument('-k', '-kpts',  action='append', dest='kpts',  type=str,
+                     default=[],
+                     help='k-points indices for dos projection')
+    par.add_argument('-spd',         action='append', dest='spd',   type=str,
+                     default=[],
+                     help='s/p/d orbital indices for dos projection')
+    par.add_argument('-soc', action='append', dest='soc', type=str2bool,
+                     default=[],
+                     help='PROCAR with SOC?')
+
+    par.add_argument('-tdos', action='append', dest='tdos', type=str2bool,
+                     default=[],
+                     help='show total dos?')
+
+    par.add_argument("-x", '-xlim', action='append', dest='xlim', type=float,
+                     default=[], nargs=2,
+                     help='x-limit for dos plot')
+    par.add_argument("-y", '-ylim', action='append', dest='ylim', type=float,
+                     default=[], nargs=2,
+                     help='y-limit for dos plot')
+
+    par.add_argument('-xshift', action='append', dest='xshift', type=float,
+                     default=[],
+                     help='x shift for the dos plot.')
+    par.add_argument('-yshift', action='append', dest='yshift', type=float,
+                     default=[],
+                     help='y shift for the dos plot.')
+    par.add_argument('-scale',  action='append', dest='scale',  type=float,
+                     default=[],
+                     help='scale factor for the dos plot')
+    par.add_argument('-z', '-zero',  action='append', dest='zero',  type=float,
+                     default=[],
+                     help='Fermi energy for each PROCAR.')
+
+    par.add_argument('-s', '-sigma',  action='append', dest='sigma',  type=float,
+                     default=[],
+                     help='Smearing parameter for dos plot')
+    par.add_argument('-n', '-nedos',  action='append', dest='nedos',  type=int,
+                     default=[],
+                     help='No. of interpolation points in dos plot')
+
+    par.add_argument('-lw', action='append', dest='linewidths',  type=float,
+                     default=[],
+                     help='line width in dos plot')
+    par.add_argument('-tlw', action='append', dest='tdos_lw',  type=float,
+                     default=[],
+                     help='line width in total dos plot')
+    par.add_argument('-lc', action='append', dest='linecolors',  type=str,
+                     default=[],
+                     help='line color in dos plot')
+    par.add_argument('-tlc', action='append', dest='tdos_lc',  type=str,
+                     default=[],
+                     help='line color in total dos plot')
+    par.add_argument("-l", '-label', action='append', dest='label', type=str,
+                     default=[],
+                     help='label for the pdos')
+    par.add_argument("-tlab", action='append', dest='tdos_lab', type=str,
+                     default=[],
+                     help='label for the total dos')
+    
+    par.add_argument('-lloc', action='append', dest='legendLoc', type=str,
+                     default=[],
+                     help='Legend location.')
+    par.add_argument('-lfontsize', action='append', dest='legendFontsize',
+                     default=[],
+                     help='Legend fontsize.')
+    par.add_argument('-lncol', action='append', dest='legendNcols', type=int,
+                     default=[],
+                     help='Number of columns in legend.')
+
+    return par
+
+def pdosAtomsIndex(ind):
+    '''
+    '''
+    AtomInd = []
+    for xx in ind:
+        tmp = xx.split()
+        assert len(tmp) > 0, \
+               'pdos atom specification should not be empty!'
+        if len(tmp) == 1:
+            if ':' in tmp[0]:
+                AtomInd.append(tmp[0])
+            else:
+                AtomInd.append([int(tmp[0])])
+        else:
+            tmp_s_ind = []
+            for ss in tmp:
+                if ':' in ss:
+                    ii = ss.split(":")
+                    print ii
+                    assert len(ii) > 1 and len(ii) <= 3, ''
+                    start_ind = int(ii[0])
+                    end_ind   = int(ii[1])
+                    stride    = 1 if len(ii) == 2 else int(ii[2])
+                    tmp_s_ind += range(start_ind, end_ind, stride)
+                else:
+                    tmp_s_ind.append(int(ss))
+            AtomInd.append(list(set(tmp_s_ind)))
+
+    return AtomInd
+
+def process_dos_args(p):
+    '''
+    '''
+    nr = p.nrows
+    nc = p.ncols
+
+    if p.inp == []:
+        p.inp = ['PROCAR']
+
+    p.naxes = nr * nc
+    p.npros = len(p.inp)
+    p.npdos = len(p.pdos)
+
+    p.pdos = pdosAtomsIndex(p.pdos)
+
+    # setting default parameters for dos plot
+    p.inp      += ['PROCAR'] * (p.npdos - len(p.inp))
+    p.tdos     += [True]     * (p.npdos - len(p.tdos))
+    p.ax       += [0]        * (p.npdos - len(p.ax ))
+    p.kpts     += [':']      * (p.npdos - len(p.kpts))
+    p.spd      += [':']      * (p.npdos - len(p.spd))
+    p.pvisible += [True]     * (p.npdos - len(p.pvisible))
+
+    p.soc    += [False]    * (p.npros - len(p.soc))
+    p.sigma  += [0.05]     * (p.npros - len(p.sigma))
+    p.nedos  += [3000]     * (p.npros - len(p.nedos))
+    p.zero   += [0.0]      * (p.npros - len(p.zero))
+
+    p.xshift += [0.0]      * (p.npdos - len(p.xshift))
+    p.yshift += [0.0]      * (p.npdos - len(p.yshift))
+    p.scale  += [1.0]      * (p.npdos - len(p.scale))
+
+    p.linewidths += [0.5]      * (p.npdos - len(p.linewidths))
+    p.linecolors += [None]     * (p.npdos - len(p.linecolors))
+    p.label      += ['']       * (p.npdos - len(p.label))
+    p.tdos_lw    += [0.5]      * (p.npdos - len(p.tdos_lw))
+    p.tdos_lc    += ['k']      * (p.npdos - len(p.tdos_lc))
+    p.tdos_lab   += ['total']  * (p.npdos - len(p.tdos_lab))
+
+    p.xlim += [(-6, 6)]     * (p.naxes - len(p.xlim))
+    p.ylim += [(None,None)] * (p.naxes - len(p.ylim))
+    p.legendLoc       += ['upper right'] * (p.naxes - len(p.legendLoc))
+    p.legendNcols     += [1]             * (p.naxes - len(p.legendNcols))
+    p.legendFontsize  += ['small']       * (p.naxes - len(p.legendFontsize))
+
+    return p
+
+def parse_cml_arg(inp):
+
+    cml_fig = parse_figure_args()
+    cml_dos = parse_pdos_arg()
+
+    par  = argparse.ArgumentParser(parents=[cml_fig, cml_dos])
+    par.add_argument('-q', '-quiet', action='store_true', dest='quiet',
+                      default=False,
+                      help='not show image')
+
+    args = par.parse_args(inp)
+    args = process_dos_args(args)
+
+    return args
+
+def init_procar(p):
+    '''
+    '''
+    # processing pdos
+    no_dup_procars_inf = []
+    for inf in p.inp:
+        if not inf in no_dup_procars_inf:
+            no_dup_procars_inf.append(inf)
+
+    p.procars = []
+    p.pIDs    = []
+    for inf in no_dup_procars_inf:
+        ii  = p.inp.index(inf)
+        tmp = procar(inf=inf, lsoc=p.soc[ii])
+        tmp.set_sigma(p.sigma[ii])
+        tmp.set_nedos(p.nedos[ii])
+        p.procars.append(tmp)
+
+    for ip in range(p.npdos):
+        ii = no_dup_procars_inf.index(p.inp[ip])
+        p.pIDs.append(ii)
+
+    return p
+
+def plot_dos(p):
+    '''
+    '''
+
+    dos_total_yshift = np.zeros((p.naxes, p.npros), dtype=int)
+    for ip in range(p.npdos):
+        iax   = p.ax[ip]
+        ax    = p.axes[iax]
+
+        atoms = p.pdos[ip]
+        kpts  = p.kpts[ip]
+        spd   = p.spd[ip]
+
+        pid   = p.pIDs[ip]
+        pro   = p.procars[pid]
+
+        if p.pvisible[ip]:
+            x, y  = pro.get_pdos(atoms=atoms, kpts=kpts, spd=spd)
+
+            for ispin in range(pro.get_nspin()):
+                sign = 1 if ispin == 0 else -1
+                y *= p.scale[ip]
+                y += sign * p.yshift[ip]
+                x = x + p.xshift[ip] - p.zero[pid]
+
+                if dos_total_yshift[iax, pid] < p.yshift[ip]:
+                    dos_total_yshift[iax, pid] = p.yshift[ip]
+
+                line, im = gradient_fill(
+                               x, y[ispin], ax=ax,
+                               direction=sign,
+                               lw=p.linewidths[ip],
+                               alpha=0.8,
+                               color=p.linecolors[ip],
+                               label=p.label[ip]
+                           )
+
+    show_total_dos = np.zeros((p.naxes, p.npros), dtype=bool)
+    for ip in range(p.npdos):
+        iax   = p.ax[ip]
+        ax    = p.axes[iax]
+
+        pid   = p.pIDs[ip]
+        pro   = p.procars[pid]
+
+        if p.tdos[ip] and (not show_total_dos[iax, pid]):
+            xt, yt = pro.get_total_dos()
+
+            for ispin in range(pro.get_nspin()):
+                sign = 1 if ispin == 0 else -1
+                xt -= p.zero[pid]
+                yt += dos_total_yshift[iax, pid] * sign
+
+                show_total_dos[iax, pid] = True
+                line, im = gradient_fill(
+                               xt, yt[ispin], ax=ax,
+                               direction=sign,
+                               lw=p.tdos_lw[ip],
+                               alpha=0.8,
+                               color=p.tdos_lc[ip],
+                               label=p.tdos_lab[ip]
+                           )
+    # no pdos specification, plot total dos for each axis, each procar
+    if p.npdos == 0:
+        for iax in range(p.naxes):
+            ax = p.axes[iax]
+            for pid, pro in enumerate(p.procars):
+                xt, yt = pro.get_total_dos()
+                xt -= p.zero[pid]
+                for ispin in range(pro.get_nspin()):
+                    sign = 1 if ispin == 0 else -1
+                    line, im = gradient_fill(
+                               xt, yt[ispin], ax=ax,
+                               direction=sign,
+                               lw=0.5,
+                               alpha=0.8,
+                               color='k',
+                               label='total'
+                           )
+
+    for iax in range(p.naxes):
+        ax = p.axes[iax]
+
+        ax.set_xlim(p.xlim[iax])
+        ax.set_ylim(p.ylim[iax])
+
+        ax.legend(loc=p.legendLoc[iax],
+                  fontsize=p.legendFontsize[iax],
+                  frameon=True,
+                  ncol=p.legendNcols[iax],
+                  # fancybox=True,
+                  framealpha=0.8,
+                  # shadow=True,
+                  )
+
+    p.fig.savefig(p.out, dpi=p.dpi)
+    if not p.quiet:
+        from subprocess import call
+        call('feh -xdF {}'.format(p.out).split())
+
+def main(cml):
+    '''
+    '''
+    from time import time
+    p = parse_cml_arg(cml)
+
+    t0 = time()
+    # initializing the dos figure
+    p = init_fig(p)
+    t1 = time()
+    if not p.quiet:
+        print "Figure Initialization Completed! Time Used: {:.2f} [sec]".format(t1 - t0)
+
+    # dos initialization
+    p = init_procar(p)
+    t2 = time()
+    if not p.quiet:
+        print "PROCAR Initialization Completed! Time Used: {:.2f} [sec]".format(t2 - t1)
+
+    # plotting pdos
+    plot_dos(p)
+
+############################################################
+if __name__ == '__main__':
+    main(sys.argv[1:])

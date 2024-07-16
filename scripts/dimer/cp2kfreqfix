@@ -1,0 +1,33 @@
+#!/bin/sh
+#本脚本调用Multiwfn生成固定原子格式的inp文件
+#使用方法：
+#脚本名 + "要固定的原子序号" 其中原子序号用Gview弄
+
+#https://cloud.tencent.com/developer/article/1629932
+while getopts ":h" optname
+do
+    case "$optname" in
+      "h")
+        echo "#本脚本调用Multiwfn生成固定原子格式的inp文件
+#使用方法：
+#脚本名 + "要固定的原子序号" 其中原子序号用Gview弄"
+	exit
+        ;;
+      ":")
+        echo "No argument value for option $OPTARG"
+        ;;
+      "?")
+        echo "Unknown option $OPTARG"
+        ;;
+      *)
+        echo "Unknown error while processing options"
+        ;;
+    esac
+    #echo "option index is $OPTIND"
+done
+
+(echo cp2k; echo tmp.inp; echo -1; echo 3; echo 9;\
+ echo $1; echo 4; echo 0) | Multiwfn cp2k-1.restart
+cat tmp.inp
+rm tmp.inp
+grep -E "MULTIPLICITY|ABC|ALPHA_BETA_GAMMA|EPS_SCF" *inp -A1

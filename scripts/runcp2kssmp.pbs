@@ -1,0 +1,22 @@
+#PBS -N cp2k
+#PBS -l nodes=1:ppn=48
+#PBS -l walltime=24:00:00
+#PBS -q fast
+#PBS -S /bin/bash
+#PBS -V
+
+source /opt/intel/bin/compilervars.sh intel64
+source /opt/intel/impi/2018.1.163/bin64/mpivars.sh intel64
+source /opt/intel/mkl/bin/mklvars.sh intel64
+
+NP=`cat $PBS_NODEFILE | wc -l`
+NN=`cat $PBS_NODEFILE | sort | uniq | tee /tmp/nodes.$$ | wc -l`
+
+cat $PBS_NODEFILE > /tmp/nodefile.$$
+cd $PBS_O_WORKDIR
+ulimit -s unlimited
+
+export OMP_NUM_THREADS=48
+EXEC=/home/changruiwang-ICME/Software/cp2k-7.1-Linux-x86_64.ssmp
+$EXEC cp2k.inp 1>cp2k.out 2>cp2k.err
+

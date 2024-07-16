@@ -1,0 +1,32 @@
+#!/bin/sh
+#绘制dimer过渡态计算的离子步-能量曲线图
+#grep "ENERGIES" cp2k.out -A1 | tail -2 | xargs | awk '{$1="";$2="";$3="";print $0}' \
+#| awk '{for(i=0;++i<=NF;)a[i]=a[i]?a[i] FS $i:$i}END{for(i=0;i++<NF;)print a[i]}' | cat -n > tsing
+
+#https://cloud.tencent.com/developer/article/1629932
+while getopts ":h" optname
+do
+    case "$optname" in
+      "h")
+        echo "#绘制dimer过渡态计算的离子步-能量曲线图"
+	exit
+        ;;
+      ":")
+        echo "No argument value for option $OPTARG"
+        ;;
+      "?")
+        echo "Unknown option $OPTARG"
+        ;;
+      *)
+        echo "Unknown error while processing options"
+        ;;
+    esac
+    #echo "option index is $OPTIND"
+done
+
+
+sed -n '2,$p' fe.dat | awk -va=1 -vb=2 '{print $a,$b}' > tsing
+gnuplot -e "set xtics font 'times.ttf,14'; set title 'Total Energy'; set xlabel 'Optimization Step Number' ;\
+set ylabel 'Total Energy (a.u.)';\
+plot 'tsing' with linespoints lt 3 lw 2 pt 13 ps 2; pause -1"
+rm tsing

@@ -1,0 +1,156 @@
+#!/bin/bash
+# version 1.2.1 by Jianyong Yuan @ 20230311. IF you have any suggestions please contact E-mail: 404283110@qq.com 
+
+function preprocessing(){
+cat $INPF | awk 'BEGIN{flag_scf="F";flag_opt="F"} {
+if($0 ~/SCF run/) {
+flag_scf="T"
+delete scf
+i=1
+};
+
+if($0 ~/SCF run/ || flag_scf=="T" && $0 !~/Informations at step/) {
+scf[i]=$0
+i++
+};
+
+if($0 ~/Informations at step/ && $0 !~/Informations at step =     0/) {
+flag_scf="F"
+flag_opt="T"
+delete opt
+j=1
+};
+
+if($0 ~/Informations at step/ && $0 !~/Informations at step =     0/ || flag_opt=="T") {
+opt[j]=$0
+j++
+};
+
+if(j==33) {
+j=0
+flag_opt="F"
+for (a=1; a <= length(scf); a++) {print scf[a]};
+for (b=1; b <= length(opt); b++) {print opt[b]};
+print "\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
+};
+}' > $INPF.tmp
+}
+
+function get_scf_energy(){
+	cat $INPF.tmp |grep "ENERGY| Total FORCE_EVAL" | awk '{printf "%.10f\n",$9}' > CPM_SCFE
+	
+	initE=$(cat CPM_SCFE | head -n 1)
+	relativeE=$(cat CPM_SCFE | awk -v ene="$initE" 'BEGIN{e=0}{de=($0-ene)*627.51-e;e=($0-ene)*627.51;printf "%10.3f%10.3f",e,de}')
+	nscf=$(cat $INPF.tmp | awk '{if($0 ~/SCF run converged in/) print $6; else if($0 ~/SCF run NOT converged/) print "NC"}') 
+	SCFT=$(awk '/Used time/{
+    sec=$4
+	min=sec/60
+    printf("%8.1f\n",min)}' $INPF.tmp)
+	
+	printf "%10s%10s\n" "RE" "dE" > CPM_E
+	printf "%10.3f%10.3f\n" $relativeE >> CPM_E
+	printf "%10s\n" "SCF cycle" > CPM_SCF
+	printf "%7s\n" $nscf >> CPM_SCF
+	printf "%10s\n" "time (min)" > CPM_SCFT
+	printf "%8s\n" $SCFT >> CPM_SCFT
+	
+	paste CPM_E CPM_SCF CPM_SCFT > CPM_TMP
+	awk 'BEGIN{i=1}/.*/{if(NR==1) printf("step%-10s\n",$0); else printf("%-4d%s\n",i,$0,i++)}' CPM_TMP > CPM_GE
+	rm CPM_SCFE CPM_SCF CPM_SCFT CPM_E CPM_TMP
+}
+
+function get_opt_info(){
+    printf "%6s\t%6s\t%6s\t%6s\n" "MF" "RF" "MD" "RD" > CPM_OPT_CONV
+    opt_conv=$(grep -A12 "Convergence check :" $INPF.tmp | grep -vE "\-\-| in | Conv\. for" | awk '{
+		if($0 ~/Convergence check :/)
+		getline
+		Maxstep=$5
+		getline
+		Maxstepconv=$7
+		getline
+		RMSstep=$5
+		getline
+		RMSstepconv=$7
+		getline
+		MaxF=$4
+		getline
+		MaxFconv=$6
+		getline
+		RMSF=$4
+		getline
+		RMSFconv=$7
+        MD=Maxstep/Maxstepconv
+		RD=RMSstep/RMSstepconv
+		MF=MaxF/MaxFconv
+		RF=RMSF/RMSFconv
+        printf("%6.2f\t%6.2f\t%6.2f\t%6.2f\n",MF,RF,MD,RD)}' )
+
+    echo "$opt_conv" >> CPM_OPT_CONV
+	paste CPM_GE CPM_OPT_CONV > CPM_OPT
+	rm CPM_GE CPM_OPT_CONV
+}
+
+function timer(){
+	total_SCFT=$(awk 'BEGIN{sumT=0} 
+	/Used time/{
+    sec=$4
+	sumT += sec
+    } 
+	END{printf("%d",sumT)}' $INPF.tmp)
+	ST=$(grep "PROGRAM STARTED AT" $INPF |awk -F 'AT' '{printf $2}')
+	ET=$(grep "PROGRAM ENDED AT" $INPF |awk -F 'AT' '{printf $2}')
+	start=$(date +%s -d "$ST")
+	end=$(date +%s -d "$ET")
+	total_time=$(($end - $start))
+	total_formatted_time=$(displaysecs)
+	echo
+	echo "PROGRAM STARTED AT    " $ST
+	[[ $ET != '' ]] && echo "PROGRAM ENDED AT      " $ET
+	[[ $ET != '' ]] && printf "TOTAL RUNNING TIME:    $total_formatted_time\n" || printf "CURRENT RUNNING TIME:  $total_formatted_time\n"
+}
+
+function displaysecs(){
+	[[ $ET == '' ]] && local T=$total_SCFT || local T=$total_time
+	local D=$((T/60/60/24))
+	local H=$((T/60/60%24))
+	local M=$((T/60%60))
+	local S=$((T%60))
+	
+	(( $D > 0 )) && printf '%d days ' $D
+	(( $H > 0 )) && printf '%d hours ' $H
+	(( $M > 0 )) && printf '%d minutes ' $M
+	# (( $D > 0 || $H > 0 || $M > 0 )) && printf 'and '
+	printf '%d seconds\n' $S
+}
+
+if [[ $# -ne 1 ]] ; then
+    echo -e "usage: cp2kmonitor cp2k_outputs.log\n"
+    exit 1
+fi
+
+INPF=$1
+
+preprocessing
+get_scf_energy
+get_opt_info
+echo "Note: energy unit is kcal/mol, 1 eV = 23.0605 kcal/mol"
+echo "RE: The energy relative to the geometry of the first step"
+echo "dE: The energy change between geometries of the current and last step"
+echo
+cat CPM_OPT | column -s $'\t' -t | cut -c 1-$(tput cols)
+timer
+
+if [[ $ET != '' ]]; then
+	echo
+	grep "The number of warnings for this run is" $INPF | grep -o "[^ ]\+\( \+[^ ]\+\)*"
+	echo
+else 
+	warnings_counter=$(grep "WARNING" $INPF |wc -l)
+	echo
+	echo "The number of warnings for this run is : $warnings_counter"
+	echo
+fi
+rm $INPF.tmp CPM_OPT
+
+
+

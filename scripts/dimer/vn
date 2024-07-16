@@ -1,0 +1,61 @@
+#!/bin/sh
+#可视化neb计算的结构，即Visualize the structure of neb calculations(vn)
+#CI-NEB转dimer计算时需要把每个cp2k-pos-Replica_nr文件的最后一个结构
+#追加到一个xyz文件中，这样方便查看哪个结构更接近过渡态。
+#使用方法：(假设一共在算N个结构)
+#脚本名 + N
+
+#https://cloud.tencent.com/developer/article/1629932
+while getopts ":h" optname
+do
+    case "$optname" in
+      "h")
+        echo "#可视化neb计算的结构，即Visualize the structure of neb calculations(vn)
+#CI-NEB转dimer计算时需要把每个cp2k-pos-Replica_nr文件的最后一个结构
+#追加到一个xyz文件中，这样方便查看哪个结构更接近过渡态。
+#使用方法：(假设一共在算N个结构)
+#脚本名 + N"
+	exit
+        ;;
+      ":")
+        echo "No argument value for option $OPTARG"
+        ;;
+      "?")
+        echo "Unknown option $OPTARG"
+        ;;
+      *)
+        echo "Unknown error while processing options"
+        ;;
+    esac
+    #echo "option index is $OPTIND"
+done
+
+end=$1
+
+rm -rf pp.xyz
+if [ "${#end}" = 1 ] 
+then
+
+    atoms1=`sed -n 1p cp2k-pos-Replica_nr_1-1.xyz  | awk -va=1 '{print $a}'`
+    atoms=$(($atoms1 + 2))
+    for i in $(seq 1 1 $end);do tail -n ${atoms} "cp2k-pos-Replica_nr_"$i"-1.xyz" >> pp.xyz;done
+    sz pp.xyz
+
+else
+
+    atoms1=`sed -n 1p cp2k-pos-Replica_nr_01-1.xyz  | awk -va=1 '{print $a}'`
+    atoms=$(($atoms1 + 2))
+    
+    for i in $(seq 1 1 $end)
+    do 
+    if [ "${#i}" = 1 ] 
+        then
+        tail -n ${atoms} "cp2k-pos-Replica_nr_0"$i"-1.xyz" >> pp.xyz
+    else
+        tail -n ${atoms} "cp2k-pos-Replica_nr_"$i"-1.xyz" >> pp.xyz
+    fi
+    done
+    sz pp.xyz
+
+fi
+

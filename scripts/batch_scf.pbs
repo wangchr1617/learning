@@ -1,0 +1,141 @@
+#PBS -N static
+#PBS -l nodes=3:ppn=24
+#PBS -l walltime=600:00:00
+#PBS -q batch
+#PBS -V
+#PBS -S /bin/bash 
+          
+source /opt/intel/compilers_and_libraries_2018/linux/bin/compilervars.sh intel64
+source /opt/intel/mkl/bin/mklvars.sh intel64
+source /opt/intel/impi/2018.1.163/bin64/mpivars.sh
+
+NP=`cat $PBS_NODEFILE | wc -l`
+NN=`cat $PBS_NODEFILE | sort | uniq | tee /tmp/nodes.$$ | wc -l`
+    
+cat $PBS_NODEFILE > /tmp/nodefile.$$
+cd $PBS_O_WORKDIR
+ulimit -s unlimited
+
+### -------------- Variable ---------------- ###
+GAM=/opt/software/vasp/vasp6.4.0/bin/vasp_gam
+STD=/opt/software/vasp/vasp6.4.0/bin/vasp_std
+### ----------------------- ---------------- ###
+
+for i in */
+do
+if [ -e $i/OSZICAR ]; then
+conv=`grep : $i/OSZICAR | tail -1 | awk '{print $2,$4}'`
+echo 'skip ' $i >> ./tmp
+echo $conv >> ./tmp
+else
+cd $i
+### ------------- Pretrainment ------------- ###
+if [ -e tmp ]; then
+  rm -rf INCAR low/ medium/ high/ OSZICAR OUTCAR tmp
+fi
+if ! [ -e POTCAR ]; then
+  echo 103 | vaspkit
+fi
+# natom=`sed -n '7p' POSCAR|awk '{for(i = 1; i <= NF; i++) {sum += $i} {printf("%d", sum)}}'`
+cat > INCAR << EOF
+SYSTEM = GeTe
+
+KPAR = 3
+NCORE = 12
+ISTART = 0
+ICHARG = 2
+KSPACING = 0.2
+KGAMMA = .T.
+ISYM = 0
+IVDW = 12
+
+ALGO = Normal
+NELM = 120
+NELMIN = 4
+EDIFF = 1E-07
+
+IBRION = -1
+NSW = 0
+EDIFFG = -1E-03
+
+ENCUT = 600
+ISMEAR = 0
+SIGMA = 0.02
+PREC = A
+LREAL = .F.
+ADDGRID = .T.
+EOF
+### ---------------------------------------- ###
+
+### -------------- Template ---------------- ###
+mkdir template
+cp INCAR POSCAR POTCAR template/
+### ---------------------------------------- ###
+
+### ------------- Low accuracy ------------- ###
+cp -rf template/ low/
+cd low/
+sed -i "s/KPAR = /KPAR = 1 #/" INCAR
+sed -i "s/KSPACING = /KSPACING = 2.0 #/" INCAR
+sed -i "/ISYM/d" INCAR
+sed -i "s/ALGO = /ALGO = Fast #/" INCAR
+sed -i "/NELM/d" INCAR
+sed -i "/ENCUT/d" INCAR
+sed -i "s/SIGMA = /SIGMA = 0.1 #/" INCAR
+sed -i "s/PREC = /PREC = N #/" INCAR
+mpirun -machinefile $PBS_NODEFILE -np $NP $GAM > output
+
+time=`grep Elapsed OUTCAR`
+out=`tail -1 OUTCAR`
+cat OSZICAR >> ../OSZICAR
+echo -e "Low accuracy: ${time}, ${out}" >> ../tmp
+cd ..
+### ---------------------------------------- ###
+
+### ----------- Medium accuracy ------------ ###
+cp -rf template/ medium/
+mv low/CHGCAR medium/
+rm low/WAVECAR low/CHG
+cd medium/
+sed -i "/ISTART/d" INCAR
+sed -i "s/ICHARG = /ICHARG = 1 #/" INCAR
+sed -i "s/ALGO = /ALGO = Fast #/" INCAR 
+sed -i "/NELM/d" INCAR
+sed -i "/ENCUT/d" INCAR
+sed -i "s/SIGMA = /SIGMA = 0.1 #/" INCAR
+sed -i "s/PREC = /PREC = N #/" INCAR
+mpirun -machinefile $PBS_NODEFILE -np $NP $STD > output
+
+time=`grep Elapsed OUTCAR`
+out=`tail -1 OUTCAR`
+cat OSZICAR >> ../OSZICAR
+echo -e "Medium accuracy: ${time}, ${out}" >> ../tmp
+cd ..
+### ---------------------------------------- ###
+
+### ------------ High accuracy ------------- ###
+cp -rf template/ high/
+mv medium/CHGCAR medium/WAVECAR high/
+rm medium/CHG
+cd high/
+sed -i "/ISTART/d" INCAR
+sed -i "s/ICHARG = /ICHARG = 1 #/" INCAR
+sed -i "s/NELM = /NELM = 30 #/" INCAR
+mpirun -machinefile $PBS_NODEFILE -np $NP $STD > output
+time=`grep Elapsed OUTCAR`
+out=`tail -1 OUTCAR`
+cat OSZICAR >> ../OSZICAR
+echo -e "High accuracy: ${time}, ${out}" >> ../tmp
+rm -f WAVECAR CHG CHGCAR
+cd ..
+### ---------------------------------------- ###
+
+rm -rf template/ low/ medium/
+conv=`grep : OSZICAR | tail -1 | awk '{print $2,$4}'`
+echo "----------------------------------------" >> ../tmp
+echo $i $time $out >> ../tmp
+echo $conv >> ../tmp
+cd ..
+fi
+done
+

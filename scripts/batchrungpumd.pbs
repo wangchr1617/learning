@@ -1,0 +1,35 @@
+#PBS -N gpumd
+#PBS -l nodes=1:ppn=4
+#PBS -l walltime=144:00:00
+#PBS -q gpu
+#PBS -S /bin/bash
+#PBS -V
+
+NP=`cat $PBS_NODEFILE | wc -l`
+NN=`cat $PBS_NODEFILE | sort | uniq | tee /tmp/nodes.$$ | wc -l`
+
+cat $PBS_NODEFILE > /tmp/nodefile.$$
+cd $PBS_O_WORKDIR
+ulimit -s unlimited
+
+export CUDA_VISIBLE_DEVICES=0
+EXEC_gpumd=/home/changruiwang-ICME/Software/GPUMD-3.9.4/src/gpumd
+EXEC_nep=/home/changruiwang-ICME/Software/GPUMD-3.9.4/src/nep
+
+for i in */
+do
+  if [ -e $i/output ]
+  then
+    echo 'skip ' $i >> ./tmp
+  else
+    cd $i
+    $EXEC_gpumd > output
+    time=`grep "Time used =" output`
+    out=`grep "Finished running" output`
+    echo $i >> ../tmp
+    echo $time >> ../tmp
+    echo $out >> ../tmp
+    cd ..
+  fi
+done
+

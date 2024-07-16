@@ -1,0 +1,26 @@
+SYSTEM = GeTe
+
+ISTART = 0
+ICHARG = 2
+LCHARG = .F.
+LWAVE = .F.
+ISYM = 0
+# IVDW = 12
+
+ALGO = Normal
+NELM = 120
+NELMIN = 4
+EDIFF = 1E-08
+
+ISIF = 3
+IBRION = 8
+NSW = 1
+POTIM = 0.01
+
+ENCUT = 600
+ISMEAR = 0
+SIGMA = 0.02
+PREC = A
+LREAL = A
+ADDGRID = .T.
+

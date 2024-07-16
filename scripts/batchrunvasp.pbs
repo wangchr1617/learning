@@ -1,0 +1,38 @@
+#PBS -N static
+#PBS -l nodes=3:ppn=24
+#PBS -l walltime=600:00:00
+#PBS -q batch
+#PBS -V
+#PBS -S /bin/bash 
+          
+source /opt/intel/compilers_and_libraries_2018/linux/bin/compilervars.sh intel64
+source /opt/intel/mkl/bin/mklvars.sh intel64
+source /opt/intel/impi/2018.1.163/bin64/mpivars.sh
+
+NP=`cat $PBS_NODEFILE | wc -l`
+NN=`cat $PBS_NODEFILE | sort | uniq | tee /tmp/nodes.$$ | wc -l`
+    
+cat $PBS_NODEFILE > /tmp/nodefile.$$
+cd $PBS_O_WORKDIR
+ulimit -s unlimited
+
+# EXEC=/opt/software/vasp/vasp6.4.0/bin/vasp_gam
+EXEC=/opt/software/vasp/vasp6.4.0/bin/vasp_std
+
+for i in */
+do
+  if [ -e $i/vasprun.xml ]
+  then
+    echo 'skip ' $i >> ./tmp
+  else
+    cd $i
+    mpirun -machinefile $PBS_NODEFILE -np $NP $EXEC > output
+    time=`grep Elapsed OUTCAR`
+    out=`tail -n 1 OUTCAR`
+    echo $i >> ../tmp
+    echo $time >> ../tmp
+    echo $out >> ../tmp
+    cd ..
+  fi
+done
+

@@ -1,0 +1,44 @@
+# basic parameters 
+SYSTEM       = AIMDML_NPTcooling
+NCORE        = 8           # 8*?=? 
+KGAMMA       = .TRUE.      # GAMMA point
+KSPACING     = 2.0         # to ensure that the k-mesh = 1*1*1, must test
+ENCUT        = 600.0       # to make the "Pullay stress" zero, a higher ENCUT is needed (>=600)  
+PREC         = Normal      # precision-mode
+GGA          = PE          # GGA = PE
+IVDW         = 12
+ISTART       = 0           # read the WAVECAR file or not (ICHARG=2) 
+LWAVE        = .FALSE.     # write WAVECAR or not 
+LCHARG       = .FALSE.     # write CHGCAR or not 
+# Electronic Relaxation    
+ISMEAR       = 0           # 0=Gaussian smearing. (1,2)=Methfessel-Paxton order N 
+SIGMA        = 0.05        # width of the smearing in eV 
+EDIFF        = 1e-4        # global break for electronic SC-loop
+EDIFFG       = -1e-2       # break for force
+LREAL        = A           # projection operators
+NELM         = 100         # maximum number of electronic SC
+NELMIN       = 5           # avoid breaking after 2 steps  
+# Molecular Dynamics 
+IBRION       = 0           # Activate MD 
+MDALGO       = 3           # 2=Nose-Hoover, 3=Langevin 
+ISIF         = 3           # 1=NVE, 2=NVT, 3=NpT 
+ALGO         = Fast        # Normal=IALGO=38 (Davidson), Fast=IALGO=48 (RMM-DIIS)
+ISYM         = 0           # no symmetry for MD, completely
+TEBEG        = 1500        # Begin temperature K 
+TEEND        = 300         # Final temperature K 
+NSW          = 10000       # Max ionic steps
+POTIM        = 2           # Timestep in fs
+LANGEVIN_GAMMA = 10.0 10.0   # damp (ps-1) for atom degrees-of-freedom, CuZr  
+LANGEVIN_GAMMA_L = 10      # friction coefficient (ps-1) for lattice degrees-of-freedom 
+PMASS        = 1000        # fictitious mass (in amu) to lattice degrees-of-freedom 
+PSTRESS      = 0.0         # controls the target pressure in AIMD
+NWRITE       = 1           # long MD-runs use NWRITE=0 or 1 
+NBLOCK       = 1           # write PCF and DOS, scale kinetic energy, also the output interval of XDATCAR 
+# Machine learning force field
+ML_LMLFF     = .TRUE.      # enables/disables the use of MLFF
+ML_MODE      = train
+ML_ISTART    = 0           # MLFF method (or mode), 0=MLFF, 1=restartMLFF, 2=MD
+ML_MB        = 3000        # maximum number of local reference configurations, monitor LCONF changes in ML_LOGFILE file 
+ML_WTOTEN    = 10          # scaling weight for total energies in the training data
+ML_WTIFOR    = 10          # scaling weight for forces in the training data
+ML_RCUT1     = 8           # sets the cutoff radius R for the radial descriptor

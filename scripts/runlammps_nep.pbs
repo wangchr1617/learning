@@ -1,0 +1,19 @@
+#PBS -N lammps
+#PBS -l nodes=3:ppn=24
+#PBS -l walltime=400:00:00
+#PBS -q batch
+#PBS -V
+#PBS -S /bin/bash 
+          
+module load intel/2020.1.217
+
+NP=`cat $PBS_NODEFILE | wc -l`
+NN=`cat $PBS_NODEFILE | sort | uniq | tee /tmp/nodes.$$ | wc -l`
+    
+cat $PBS_NODEFILE > /tmp/nodefile.$$
+cd $PBS_O_WORKDIR
+ulimit -s unlimited
+
+export OMP_NUM_THREADS=3
+EXEC=/home/changruiwang-ICME/Software/lammps_nep/build/lmp
+mpirun -machinefile $PBS_NODEFILE -np $NP $EXEC -in in* > output

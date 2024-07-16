@@ -1,0 +1,37 @@
+#!/bin/sh
+
+#https://cloud.tencent.com/developer/article/1629932
+while getopts ":h" optname
+do
+    case "$optname" in
+      "h")
+        echo "调用GetCP2KDimerVector.py和dimmode.pl把cp2k-dimer任务的最后一帧结构
+的振动模式可视化为多帧xyz文件，拖入VMD后source 3即可查看
+使用方法：直接运行"
+	exit
+        ;;
+      ":")
+        echo "No argument value for option $OPTARG"
+        ;;
+      "?")
+        echo "Unknown option $OPTARG"
+        ;;
+      *)
+        echo "Unknown error while processing options"
+        ;;
+    esac
+    #echo "option index is $OPTIND"
+done
+
+first_line=`sed -n 6p POSCAR`
+sed -i "1c $first_line" POSCAR
+sed -n '1,7p' POSCAR > CENTCAR
+echo "Selective Dynamics" >> CENTCAR
+echo "Cartesian" >> CENTCAR
+atoms=`sed -n 1p cp2k-pos-1.xyz  | awk -va=1 '{print $a}'`
+tail -n ${atoms} cp2k-pos-1.xyz | awk -va=2 -vb=3 -vc=4 '{print $a,$b,$c}' | sed 's/$/& T T T/g' >> CENTCAR
+#(echo 406; echo 3; echo CENTCAR; echo 4062) | vaspkit | grep 123
+#cp CENTCAR_REV CENTCAR 
+GetCP2KDimerVector.py cp2k-1.restart #Get NEWMODECAR
+dimmode.pl CENTCAR NEWMODECAR 16 1
+sz dimmode.xyz

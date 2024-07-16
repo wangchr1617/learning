@@ -1,0 +1,32 @@
+#PBS -N test
+#PBS -l nodes=1:ppn=24
+#PBS -l walltime=24:00:00
+#PBS -q batch
+#PBS -V
+#PBS -S /bin/bash 
+          
+NP=`cat $PBS_NODEFILE | wc -l`
+NN=`cat $PBS_NODEFILE | sort | uniq | tee /tmp/nodes.$$ | wc -l`
+    
+cat $PBS_NODEFILE > /tmp/nodefile.$$
+cd $PBS_O_WORKDIR
+ulimit -s unlimited
+ulimit -c unlimited
+
+export OMP_NUM_THREADS=6
+EXEC=/home/changruiwang-ICME/Software/NEP_CPU-main/test_dftd3/a.out
+
+# Calculate NEP only.
+# $EXEC nep.txt train.xyz 0.xyz 0 > output
+
+# Calculate DFT-D3 only.
+# $EXEC nep.txt train.xyz 1.xyz 1 pbe 12 6 > output
+
+# Calculate NEP in combination with DFT-D3.
+# $EXEC nep.txt train.xyz 2.xyz 2 pbe 12 6 > output
+
+# Add DFT-D3 to existing data.
+# $EXEC nep.txt train.xyz 3.xyz 3 pbe 12 6 > output
+
+# Subtract DFT-D3 from existing data.
+$EXEC nep.txt train.xyz 4.xyz 4 pbe 12 6 > output

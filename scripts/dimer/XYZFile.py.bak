@@ -1,0 +1,636 @@
+#!/usr/bin/env python
+"""
+This module is written to deal with the XYZ file format.
+"""
+from Atom import *
+from Utils import *
+from Molecule import * 
+import numpy as np
+import copy
+from subprocess import Popen, PIPE
+
+class XYZ(Molecule):
+    """
+    To read and write an XYF file.
+    The XYZ file format is like this:
+    Line1: number of atoms.
+    Line2: description line.
+    Other lines: atom name and XYZ coordinates.
+    Deal with an XYZ file with just one geometry in this class.
+    For the details, please read:
+    http://en.wikipedia.org/wiki/XYZ_file_format
+    http://openbabel.org/wiki/XYZ
+    """
+    def __init__(self):
+        """
+        Make an empty XYZ file.
+        """
+        Molecule.__init__(self)
+        # self.NumofAtoms = 0
+        self.Comment = ""
+        # self.Atoms = []
+        self.FileName = ""
+        # Move the properties from MoleculeSet to the XYZFile
+        # molecule Centroid(ctd)
+        # self.Center = np.array([0.0]*3)
+        self.RotationInertia = np.array([0.0]*3)
+        self.Planeness = 0.0
+        # self.CenterOfMass = np.array([0.0]*3)
+        self.CST = np.array([0.0]*3) #closest atom to ctd
+        self.FCT = np.array([0.0]*3)#farthest atom to ctd
+        self.FTF = np.array([0.0]*3) #farthest atom from fct
+        # 12 Descriptors for molecule: first three moments of distance to the previous four locations.This descriptor is from Ultrafast Shape Recognition algorithm.
+        self.USRDesc = [0.0]*12
+        self.ExtraUSRDesc = [0.0]*12
+        # modified USR Descriptors using the information of atomic mass.
+        self.MassUSRDesc = [0.0]*12
+        self.AdjacentMatrix = np.array([])#The adjecent matrix of this molecule.
+        self.Bonds = np.array([])
+        self.NumofBonds = 0
+        self.FullCoord = [] # a variable to store all the coordinates, so as to simplify the coding.
+
+    def ReadXYZ(self, FileName):
+        """
+        Read a molecule from the XYZ file. The second line of this file should be energy.
+        This function should be made safer, since the external scripts may fail to generate correct XYZ file.
+        If nothing goes wrong, return True; else return False
+        """
+        self.Atoms = []
+        inp = open(FileName, "r")
+        lines = inp.readlines()
+        #debug
+        #print "Reading XYZ file:  %s\n" % (FileName)
+        inp.close()
+        if not self.ReadXYZBlock(lines):
+            print "Error found when reading the geometry."
+            return False
+        self.FileName = FileName
+        return True
+
+    def ReadXYZBlock(self, lines):
+        """
+        Read the XYZ geometry from the lines, not the file.
+        This function is for the ReadXYZ() function
+        and for the ReadJobGeoListFile() function in PBSOptJob Class.
+        Each line in the XYZ file should be checked to make this function safer.
+        The first line shoud be an integer.
+        The second line should be a float number.
+        From the third line,each line is composed of "M X Y Z", where M is a string, and X Y Z are float number.
+        If everything goes well, return True; esle return False.
+        """
+        self.Atoms = []
+        self.NumofAtoms = int(lines.pop(0))
+        # debug
+        # print "Number of atoms : %d" %(self.NumofAtoms)
+        # Get the comment line of the XYZ block.
+        line = lines.pop(0).strip()
+        self.Comment = line
+        # debug
+        # print "Comment of XYZ file: %s" %(line)
+        #Read the rest part of the XYZ lines.
+        for i in range(0, self.NumofAtoms):
+            tmpAtom = Atom()
+            if not tmpAtom.ReadAtom(lines[i]):
+                print "Error found when reading Atom N.O. %d: %s" % (i+1, lines[i])
+                return False
+            tmpAtom.Index = i
+            self.Atoms.append(tmpAtom)
+        return True
+
+    def PrintXYZ(self):
+        """
+        Simply print the XYZ file.
+        """
+        lines = ""
+        lines += "%s\n" % (self.NumofAtoms)
+        lines += "%s\n" % (self.Comment)
+        for tmpatom in self.Atoms:
+            lines += "%s %.16f %.16f %.16f\n" % (tmpatom.Symbol, tmpatom.Coord[0], tmpatom.Coord[1], tmpatom.Coord[2])
+        print lines,
+        return True
+
+    def WriteXYZ(self, FileName):
+        """
+        Write one molecule coordinates to an XYZ file.
+        """
+        outp = open(FileName, "w")
+        lines = self.WriteXYZLines()
+        outp.write(lines)
+        outp.close()
+        return True
+
+    def WriteXYZ2Mode(self, FileName):
+        """
+        Just print the mode in a more friendly way.
+        """
+        outp = open(FileName, "w")
+        lines = ""
+        for atom in self.Atoms:
+            lines += "%f %f %f\n" % (atom.Coord[0], atom.Coord[1], atom.Coord[2])
+        outp.write(lines)
+        outp.close()
+        return True
+
+    def WriteXYZLines(self):
+        """
+        Write the geometry to a block. This is part of the refactoring.
+        This function is now obselete.
+        """
+        lines = ""
+        lines += "%s\n" % (str(self.NumofAtoms))
+        lines += "%s\n" % (self.Comment)
+        if len(self.Atoms) != self.NumofAtoms:
+            print "There should be %d atoms, but found %d atoms. Something is wrong!" % (self.NumofAtoms, len(self.Atoms))
+        else:
+            for tmpatom in self.Atoms:
+                lines += "%s %.6f %.6f %.6f \n" % (tmpatom.Symbol, tmpatom.Coord[0], tmpatom.Coord[1], tmpatom.Coord[2])
+        return lines
+
+    def SetFullCoord(self):
+        """
+        Set the full coordinates of the XYZ file
+        """
+        self.FullCoord = []
+        for atom in self.Atoms:
+            self.FullCoord.append(atom.Coord)
+        return True
+
+    def NormXYZMode(self):
+        """
+        Generate normalized XYZ Dimer Vector(the MODECAR file)
+        """
+        Mode = copy.deepcopy(self)
+        sumvec = 0.0
+        sumvec2 = 0.0
+        for i in range(0, Mode.NumofAtoms):
+            for j in range(0, 3):
+                sumvec2 += Mode.Atoms[i].Coord[j]*Mode.Atoms[i].Coord[j]
+        sumvec = math.sqrt(sumvec2)
+        for i in range(0, Mode.NumofAtoms):
+            for j in range(0, 3):
+                Mode.Atoms[i].Coord[j] /= sumvec
+        return Mode
+
+    def AddModeVector(self, MODE, Step):
+        """
+        Add a dimer vector to the XYZ file.
+        """
+        if len(MODE) != self.NumofAtoms:
+            print "Error: Number of atoms %d is not the same with number of modes %d." % (self.NumofAtoms, len(MODE))
+            return False
+        for i in range(0, self.NumofAtoms):
+            self.Atoms[i].Coord += Step*MODE[i]
+        return True
+
+    def ScaleCoord(self, Scale):
+        """
+        Scale the coordinates of all atoms
+        """
+        for i in range(0, self.NumofAtoms):
+            self.Atoms[i].Coord *= Scale
+        return True
+
+    def SetCenter(self):
+        """
+        Calculate the center of the XYZ file.
+        """
+        centroid = np.array([0.0]*3)
+        #debug line
+        #print "Number of Atoms: %d" % (self.NumofAtoms)
+        for i in range(0, self.NumofAtoms):
+            #debug line
+            #print "Atom %d: %s" % (i, self.Atoms[i].Coord)
+            centroid += self.Atoms[i].Coord
+        centroid /= self.NumofAtoms
+        #debug line
+        #print "Center of MoleculeSet is %s" % (centroid)
+        self.Center = centroid
+
+    def SetUSRLocations(self):
+        """
+        Set the four molecular locations (ctd, cst, fct, ftf)of the molecule.
+        MolList shoud be used to do partial USR.
+        """
+        #Centroid
+        centroid = np.array([0.0]*3)
+        #debug line
+        #print "Atom Number: %d " % (self.NumofAtoms)
+        #print "Atom Number: %d " % ( len(self.Atoms))
+        for i in range(0, self.NumofAtoms):
+            #print "Atom: %d" % (i)
+            centroid += self.Atoms[i].Coord
+        centroid /= self.NumofAtoms
+        self.Center = centroid
+        #CST,FCT
+        #Here might be the source of bug!
+        cst = self.Atoms[0].Coord
+        fct = self.Atoms[0].Coord
+        dist1 = Length(cst - self.Center)
+        dist2 = Length(fct - self.Center)
+        for i in range(1, self.NumofAtoms):
+            dist3 = Length(self.Atoms[i].Coord - self.Center)
+            if dist3 < dist1:
+                cst = self.Atoms[i].Coord
+                dist1 = dist2
+            if dist3 > dist2:
+                dist2 = dist3
+                fct = self.Atoms[i].Coord
+        #FTF
+        ftf = self.Atoms[0].Coord
+        dist4 = Length(fct-ftf)
+        for i in range(1, self.NumofAtoms):
+            dist5 = Length(self.Atoms[i].Coord - fct)
+            if dist5 > dist4:
+                ftf = self.Atoms[i].Coord
+                dist4 = dist5
+        self.CST = cst
+        self.FCT = fct
+        self.FTF = ftf
+
+    def PrintUSRLocation(self):
+        """
+        Print the MoleculeSet Locations.
+        For Debug only
+        """
+        print "Center = %s; CST =  %s; FCT = %s; FTF = %s" % (self.Center, self.CST, self.FCT, self.FTF)
+
+    def GetTotalMass(self):
+        """
+        Get the totalmass of this MoleculeSet.
+        """
+        totalmass = 0.0
+        if self.NumofAtoms == 0:
+            print "Warning: There are no atoms in this MoleculeSet!"
+        else:
+            for i in range(0, self.NumofAtoms):
+                #debug line
+                #print "Add atom N.O. %d" % (i+1)
+                totalmass += self.Atoms[i].AtomicMass
+        #debug line
+        #print "TotalMass: %.6f" % (totalmass)
+        return totalmass
+
+    def SetCenterOfMass(self):
+        """
+        Get the center of Mass of this Molecule
+        """
+        center = np.array([0.0]*3)
+        totalmass = self.GetTotalMass()
+        if self.NumofAtoms == 0:
+            print "Warning: No atoms in this MoleculeSet. Something is wrong!\n"
+        else:
+            for i in range(0, self.NumofAtoms):
+                #print "%s\t%s\t%s" % (self.Atoms[i].Symbol, self.Atoms[i].Coord, self.Atoms[i].AtomicMass)#debug
+                center += self.Atoms[i].Coord*self.Atoms[i].AtomicMass
+        center /= totalmass
+        self.CenterOfMass = center
+        return True
+
+    def GetRotationInertia(self):
+        """
+        http://en.wikipedia.org/wiki/Moment_of_inertia
+        """
+        #Move the center of mass to (0,0,0)
+        tmpAtoms = copy.deepcopy(self.Atoms)
+        self.SetCenterOfMass()
+        for i in range(0, self.NumofAtoms):
+            tmpAtoms[i].Coord -= self.CenterOfMass
+        #get the inertia tensor
+        Ixx = 0.0
+        Iyy = 0.0
+        Izz = 0.0
+        Iyz = 0.0
+        Izx = 0.0
+        Ixy = 0.0
+        for i in range(0, self.NumofAtoms):
+            Ixx += tmpAtoms[i].AtomicMass*(tmpAtoms[i].Coord[1]**2 + tmpAtoms[i].Coord[2]**2)
+            Iyy += tmpAtoms[i].AtomicMass*(tmpAtoms[i].Coord[0]**2 + tmpAtoms[i].Coord[2]**2)
+            Izz += tmpAtoms[i].AtomicMass*(tmpAtoms[i].Coord[0]**2 + tmpAtoms[i].Coord[1]**2)
+            Ixy -= tmpAtoms[i].AtomicMass*tmpAtoms[i].Coord[0]*tmpAtoms[i].Coord[1]
+            Iyz -= tmpAtoms[i].AtomicMass*tmpAtoms[i].Coord[1]*tmpAtoms[i].Coord[2]
+            Izx -= tmpAtoms[i].AtomicMass*tmpAtoms[i].Coord[2]*tmpAtoms[i].Coord[0]
+        Tensor = np.array([0.00]*9)
+        Tensor.shape = (3, 3)
+        Tensor[0, 0] = Ixx
+        Tensor[1, 1] = Iyy
+        Tensor[2, 2] = Izz
+        Tensor[0, 1] = Ixy
+        Tensor[1, 0] = Ixy
+        Tensor[0, 2] = Izx
+        Tensor[2, 0] = Izx
+        Tensor[1, 2] = Iyz
+        Tensor[2, 1] = Iyz
+        #debug lines
+        #print "Tensor"
+        #(eigenvalues, eigenvectors) = np.linalg.eigh(Tensor)
+        #print "%s" % (Tensor)
+        #print "EigenValues"
+        #print "%s" % (eigenvalues)
+        #print "EigenVectors"
+        #print "%s " % (eigenvectors)
+        return np.linalg.eigh(Tensor)
+
+    def SetRotationInertia(self):
+        """
+        Set the Rotation Inertia of the molecule
+        """
+        (eigenvalues, eigenvectors) = self.GetRotationInertia()
+        for i in range(0, 3):
+            self.RotationInertia[i] = math.sqrt(eigenvalues[i])
+
+    def SetPlaneness(self):
+        """
+        Set the planarity of certain molecule by using the rotational Inertia
+        """
+        planeness = 0.0
+        if self.RotationInertia[0] == 0 and self.RotationInertia[1] == 0 and self.RotationInertia[2] == 0:
+            (eigenvalues, eigenvectors) = self.GetRotationInertia()
+            planeness = eigenvalues[2]/(eigenvalues[0] + eigenvalues[1])
+        else:
+            planeness = self.RotationInertia[2]/(self.RotationInertia[0] + self.RotationInertia[1])
+        self.Planeness = planeness
+
+    def StandardOrentation(self):
+        """
+        Rotate the moleculeSet to get the StandardOrentation based on the Rotational Inertia.
+        Useful for doing calculation of clusters.
+        """
+        newxyz = copy.deepcopy(self)
+        newxyz.SetCenterOfMass()
+        for i in range(0, self.NumofAtoms):
+            newxyz.Atoms[i].Coord -= newxyz.CenterOfMass
+        (eigenvalues, eigenvectors) = newxyz.GetRotationInertia()
+        for i in range(0, self.NumofAtoms):
+            newxyz.Atoms[i].Coord = np.dot(np.linalg.inv(eigenvectors), newxyz.Atoms[i].Coord)
+        #debug line
+        #newmolset.PrintXYZ()
+        return newxyz
+        
+    def SetUSRDesc(self):
+        """
+        Calculate the 12 descriptors of a molecule by the four MolecularLocations
+        #Reference:
+        #Ballester, P. & Richards, W. Ultrafast shape recognition to search compound databases for similar molecular shapes Journal of Computational Chemistry, John Wiley & Sons, Ltd, 2007, 28, 1711
+        #Ballester, P.; Finn, P. & Richards, W. Ultrafast shape recognition: Evaluating a new ligand-based virtual screening technology Journal of Molecular Graphics and Modelling, Elsevier, 2009, 27, 836-845
+        """
+        dist1 = []
+        dist2 = []
+        dist3 = []
+        dist4 = []
+        for myatom in self.Atoms:
+            dist1.append(Length(myatom.Coord - self.Center))
+            dist2.append(Length(myatom.Coord - self.CST))
+            dist3.append(Length(myatom.Coord - self.FCT))
+            dist4.append(Length(myatom.Coord - self.FTF))
+        #Very simple and stupid code.
+        self.USRDesc[0] = np.mean(dist1)
+        self.USRDesc[1] = np.std(dist1)
+        self.USRDesc[2] = Skewness(dist1)
+        self.USRDesc[3] = np.mean(dist2)
+        self.USRDesc[4] = np.std(dist2)
+        self.USRDesc[5] = Skewness(dist2)
+        self.USRDesc[6] = np.mean(dist3)
+        self.USRDesc[7] = np.std(dist3)
+        self.USRDesc[8] = Skewness(dist3)
+        self.USRDesc[9] = np.mean(dist4)
+        self.USRDesc[10] = np.std(dist4)
+        self.USRDesc[11] = Skewness(dist4)
+        #debug line
+        #print "The USR descriptors of this molecule is %s" % (self.USRDesc)
+
+    def SetMassUSRDesc(self):
+        """
+        Set the USR Descriptors using not only the coordinates, but also the atomic mass
+        """
+        dist1 = []
+        dist2 = []
+        dist3 = []
+        dist4 = []
+        totalmass = self.GetTotalMass()
+        meanmass = totalmass/self.NumofAtoms
+        for myatom in self.Atoms:
+            dist1.append(Length(myatom.Coord - self.Center)*myatom.AtomicMass/meanmass)
+            dist2.append(Length(myatom.Coord - self.CST)*myatom.AtomicMass/meanmass)
+            dist3.append(Length(myatom.Coord - self.FCT)*myatom.AtomicMass/meanmass)
+            dist4.append(Length(myatom.Coord - self.FTF)*myatom.AtomicMass/meanmass)
+        #Very simple and stupid code.
+        self.MassUSRDesc[0] = np.mean(dist1)
+        self.MassUSRDesc[1] = np.std(dist1)
+        self.MassUSRDesc[2] = Skewness(dist1)
+        self.MassUSRDesc[3] = np.mean(dist2)
+        self.MassUSRDesc[4] = np.std(dist2)
+        self.MassUSRDesc[5] = Skewness(dist2)
+        self.MassUSRDesc[6] = np.mean(dist3)
+        self.MassUSRDesc[7] = np.std(dist3)
+        self.MassUSRDesc[8] = Skewness(dist3)
+        self.MassUSRDesc[9] = np.mean(dist4)
+        self.MassUSRDesc[10] = np.std(dist4)
+        self.MassUSRDesc[11] = Skewness(dist4)
+        #debug line
+        #print "The USR descriptors of this molecule is %s" % (self.MassUSRDesc)
+
+    def SetExtraUSRDesc(self, ExtraDescAtom=""):
+        """
+        Calculate the 12 descriptors of a molecule by the four MolecularLocations.
+        Based on the  USR algorithm.
+        """
+        dist1 = []
+        dist2 = []
+        dist3 = []
+        dist4 = []
+        for myatom in self.Atoms:
+            if myatom.Symbol == "":
+                return
+            elif myatom.Symbol == ExtraDescAtom:
+                dist1.append(Length(myatom.Coord - self.Center))
+                dist2.append(Length(myatom.Coord - self.CST))
+                dist3.append(Length(myatom.Coord - self.FCT))
+                dist4.append(Length(myatom.Coord - self.FTF))
+        #Very simple and stupid code.
+        self.ExtraUSRDesc[0] = np.mean(dist1)
+        self.ExtraUSRDesc[1] = np.std(dist1)
+        self.ExtraUSRDesc[2] = Skewness(dist1)
+        self.ExtraUSRDesc[3] = np.mean(dist2)
+        self.ExtraUSRDesc[4] = np.std(dist2)
+        self.ExtraUSRDesc[5] = Skewness(dist2)
+        self.ExtraUSRDesc[6] = np.mean(dist3)
+        self.ExtraUSRDesc[7] = np.std(dist3)
+        self.ExtraUSRDesc[8] = Skewness(dist3)
+        self.ExtraUSRDesc[9] = np.mean(dist4)
+        self.ExtraUSRDesc[10] = np.std(dist4)
+        self.ExtraUSRDesc[11] = Skewness(dist4)
+        #print "The Extra USR Descriptors of this molecule is %s" % (self.ExtraUSRDesc) #debug line
+
+    def SetBonds(self):
+        """
+        Set all possible bonds in the MoleculeSet.
+        """
+        self.Bonds = np.array([Bond()]*self.NumofAtoms*self.NumofAtoms)
+        self.Bonds.shape = (self.NumofAtoms, self.NumofAtoms)
+        for i in range(0, self.NumofAtoms - 1):
+            for j in range(i+1, self.NumofAtoms):
+                mybond = self.Atoms[i].GetBond(self.Atoms[j])
+                self.Bonds[i, j] = mybond
+                self.Bonds[j, i] = mybond
+
+    def SetAdjacentMatrix(self, BondRange, tol):
+        """
+        Set the adjecentMatrix of the MoleculeSet according to the self.Bonds array.
+        """
+        self.SetBonds()
+        self.AdjacentMatrix = np.array([0]*self.NumofAtoms*self.NumofAtoms)
+        self.AdjacentMatrix.shape = (self.NumofAtoms, self.NumofAtoms)
+        for i in range(0, self.NumofAtoms - 1):
+            for j in range(i + 1, self.NumofAtoms):
+                if self.Bonds[i, j].BondLength < BondRange[self.Bonds[i, j].BondType] + tol:
+                    self.AdjacentMatrix[i, j] = 1
+                    self.AdjacentMatrix[j, i] = 1
+
+    def PrintAdjecentMatrix(self):
+        """
+        Print the AdjacentMatrix. Just for debug.
+        """
+        line = ""
+        head = "  \t"
+        for i in range(0, self.NumofAtoms):
+            head += "%s\t" % (self.Atoms[i].Symbol)
+        print "%s" % (head)
+        for i in range(0, self.NumofAtoms):
+            line += "%s\t" % (self.Atoms[i].Symbol)
+            for j in range(0, self.NumofAtoms):
+                line += "%d\t " % (self.AdjacentMatrix[i, j])
+            print "%s" % (line)
+            line = ""
+
+    def CompareAdjacentMatrix(self, MolSet):
+        """
+        Check if two moleculeset have the same AdjacentMatrix.
+        If they are the same return True, else return False
+        Keep consistence with USR Similarity.
+        """
+        for i in range(0, self.NumofAtoms - 1):
+            for j in range(i + 1, self.NumofAtoms):
+                if self.AdjacentMatrix[i, j] != MolSet.AdjacentMatrix[i, j]:
+                    return False
+        return True
+
+    def CompareCoordNum(self, MolSet):
+        """
+        Compare the coordination number of each atoms in two MoleculeSet.
+        If they're not the same, then the two Moleculeset are different; else, they might be the same.
+        """
+        for i in range(0, self.NumofAtoms):
+            if self.Atoms[i].CoordNum != MolSet.Atoms[i].CoordNum:
+                #print "Coordination number of atom %d are not the same: %d and %d. " % (i+1, self.Atoms[i].CoordNum, MolSet.Atoms[i].CoordNum)  #debug
+                return False
+        return True
+
+    def UpdateUSRDesc(self, ExtraAtomSymbol=""):
+        """
+        Update the descriptors for the job.
+        This should be placed in MoleculeSet class
+        """
+        #self.ReadJobGeo()
+        self.SetUSRLocations()
+        self.SetBonds()
+        self.SetUSRDesc()
+        self.SetMassUSRDesc()
+        self.SetExtraUSRDesc(ExtraAtomSymbol)
+
+    def GetUSRSimilarity(self, MolSet):
+        """
+        Calculate the molecular similarity using Ultrafast Shape Recognition (USR) algorithm
+        This function should be placed in MoleculeSet. Too bad to put it here.
+        """
+        k = 0.00
+        for i in range(0, 12):
+            #print "Desc %d: %f and %f" % (i+1, self.JobDesc[i], job.JobDesc[i])
+            k += abs(self.USRDesc[i] - MolSet.USRDesc[i])
+        for i in range(0, 12):
+            k += abs(self.ExtraUSRDesc[i] - MolSet.ExtraUSRDesc[i])
+        sim = 1.00/(1.00 + k/24.00)
+        return sim
+
+    def GetMassUSRSimilarity(self, MolSet):
+        """
+        Calculate the molecular similarity using the Mass USR algorithm. Here the USR Descriptors are mass weighted. So using 12 descriptors are enough for one molecule.
+        """
+        k = 0.00
+        for i in range(0, 12):
+            #print "Desc %d: %f and %f" % (i+1, self.JobDesc[i], job.JobDesc[i])
+            k += abs(self.MassUSRDesc[i] - MolSet.MassUSRDesc[i])
+        sim = 1.00/(1.00 + k/12.00)
+        return sim
+
+    def GetRISimilarity(self, MolSet):
+        """
+        Calculate the molecular similarity based on the rotation inertia of each MolSet.
+        This is a backup plan for USR algorithm.
+        """
+        k = 0.00
+        for i in range(0, 3):
+            k += abs(self.RotationInertia[i] - MolSet.RotationInertia[i])
+        sim = 1.00/(1.00+ k/3.00)
+        return sim
+
+    def Similarity(self, MolSet, algo="USR"):
+        """
+        Calculate the molecular similarity using different algorithms.
+        1.USR: Ultrafast Shape Recognition (USR) algorithm
+        2.MCS: Maximum common subgraph.
+        3.AdjacentMatrix Compare.
+        And this one should be moved out of this class. I need to have a cleaner class.
+        """
+        if algo == "USR":
+            return self.GetUSRSimilarity(MolSet)
+        elif algo == "MCS":
+            return 0
+        elif algo == "AdjMatrix":
+            return 0
+        else:
+            pass
+
+    def ReadForceFromMode(self, MODE):
+        """
+        Read the force from the output of force calculation.
+        """
+        for i in range(0, self.NumofAtoms):
+            self.Atoms[i].Force = MODE[i]
+        return True
+
+    def CalcForce(self, CalcForceScript, WorkDir):
+        """
+        Call an external script for calculating the force
+        Let me finish a dirty version first.
+        """
+        os.chdir(WorkDir)
+        self.WriteXYZ("force.xyz")
+        p = Popen(CalcForceScript, stdout=PIPE, stderr=PIPE)
+        (stdout, stderr) = p.communicate()
+        Force = ReadDimerVector("FORCE")
+        Energy = ReadEnergy("ENERGY")
+        return (Force, Energy)
+
+def GetDiffXYZ(XYZ1, XYZ2):
+    """
+    Get the difference of two XYZ file.
+    A DIMER VECTOR or MODECAR is made from this difference.
+    """
+    DiffXYZ = XYZ()
+    if XYZ1.NumofAtoms == XYZ2.NumofAtoms:
+        DiffXYZ.NumofAtoms = XYZ1.NumofAtoms
+    else:
+        print "Error: Different structures: %d atoms in XYZ1 and %d in XYZ2." % (XYZ1.NumofAtoms, XYZ2.NumofAtoms)
+        DiffXYZ = XYZ()
+        return DiffXYZ
+    for i in range(0, DiffXYZ.NumofAtoms):
+        tmpAtom = Atom()
+        if XYZ1.Atoms[i].Symbol == XYZ2.Atoms[i].Symbol:
+            tmpAtom.Symbol = XYZ1.Atoms[i].Symbol
+            tmpAtom.Coord = XYZ2.Atoms[i].Coord - XYZ1.Atoms[i].Coord
+            DiffXYZ.Atoms.append(tmpAtom)
+        else:
+            print "Error: Different Atom N.O. %d: %s in XYZ1 and %s in XYZ2 " % (i+1, XYZ1.Atoms[i].Symbol, XYZ2.Atoms[i].Symbol)
+            DiffXYZ = XYZ()
+            return DiffXYZ
+    return DiffXYZ

@@ -1,0 +1,91 @@
+{
+	"api_version": "1.0",
+	"deepmd_version": "2.2.7",
+	"train" :
+	[{
+		"command": "/home/changruiwang-ICME/Software/deepmd-gpu/bin/dp",
+		"machine": {
+			"batch_type": "PBS",
+			"local_root" : "./",
+			"remote_root": "/home/changruiwang-ICME/dpgen_work/dpgen_run",
+			"context_type": "LocalContext"        
+		},
+		"resources": {
+			"number_node": 1,
+			"cpu_per_node": 32,
+			"gpu_per_node": 2,
+			"queue_name": "gpu",
+			"group_size": 1,
+			"custom_flags": [
+				"#PBS -N deepmd",
+				"#PBS -l walltime=144:00:00",
+				"#PBS -S /bin/bash",
+				"#PBS -V"
+			],
+			"source_list": [
+				"/home/changruiwang-ICME/script/dpgen_source/dpmd.sh"
+			],
+			"envs": {
+				"CUDA_VISIBLE_DEVICES": "0,1",
+				"OMP_NUM_THREADS": "16"
+			}
+		}
+    }],
+	"model_devi":
+    [{
+		"command": "/home/changruiwang-ICME/Software/deepmd-gpu/bin/lmp",
+		"machine": {
+			"batch_type": "PBS",
+			"local_root" : "./",
+			"remote_root": "/home/changruiwang-ICME/dpgen_work/dpgen_run",
+			"context_type": "LocalContext" 
+		},
+		"resources": {
+			"number_node": 1,
+			"cpu_per_node": 32,
+			"gpu_per_node": 2,
+			"queue_name": "gpu",
+			"group_size": 1,
+			"custom_flags": [
+				"#PBS -N lammps",
+				"#PBS -l walltime=144:00:00",
+				"#PBS -S /bin/bash",
+				"#PBS -V"
+			],
+			"source_list": [
+				"/home/changruiwang-ICME/script/dpgen_source/lmp.sh"
+			],
+			"envs": {
+				"CUDA_VISIBLE_DEVICES": "0,1",
+				"OMP_NUM_THREADS": "8",
+				"LAMMPS_PLUGIN_PATH": "/home/changruiwang-ICME/Software/deepmd-gpu/lib/deepmd_lmp"
+			}
+		}
+    }],
+	"fp":
+    [{
+		"command": "mpirun -np 24 /opt/software/vasp/vasp6.4.0/bin/vasp_gam",
+		"machine": {
+			"batch_type": "PBS",
+			"local_root" : "./",
+			"remote_root": "/home/changruiwang-ICME/dpgen_work/dpgen_run",
+			"context_type": "LocalContext" 
+		},
+		"resources": {
+			"number_node": 1,
+			"cpu_per_node": 24,
+			"gpu_per_node": 0,
+			"queue_name": "batch",
+			"group_size": 4,
+			"custom_flags": [
+				"#PBS -N vasp",
+				"#PBS -l walltime=144:00:00",
+				"#PBS -S /bin/bash",
+				"#PBS -V"
+			],
+			"source_list": [
+				"/home/changruiwang-ICME/script/dpgen_source/vasp.sh"
+			]
+		}
+    }]
+}

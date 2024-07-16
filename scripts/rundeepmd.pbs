@@ -1,0 +1,33 @@
+#PBS -N crwang
+#PBS -l nodes=1:ppn=32
+#PBS -l walltime=144:00:00
+#PBS -q gpu
+#PBS -S /bin/bash
+#PBS -V
+
+export INTEL_MPI_HOME=/opt/intel2020/compilers_and_libraries_2020.1.217/linux/mpi
+export PATH=$INTEL_MPI_HOME/intel64/bin:$PATH
+export MANPATH=$INTEL_MPI_HOME/man:$MANPATH
+export LD_LIBRARY_PATH=$INTEL_MPI_HOME/intel64/lib:$LD_LIBRARY_PATH
+
+NP=`cat $PBS_NODEFILE | wc -l`
+NN=`cat $PBS_NODEFILE | sort | uniq | tee /tmp/nodes.$$ | wc -l`
+
+cat $PBS_NODEFILE > /tmp/nodefile.$$
+cd $PBS_O_WORKDIR
+ulimit -s unlimited
+
+export CUDA_VISIBLE_DEVICES=0,1
+export OMP_NUM_THREADS=8
+
+source activate /home/changruiwang-ICME/Software/deepmd-gpu
+
+# Train MLP using deepmd-kit software on GPU
+# EXEC=/home/changruiwang-ICME/Software/deepmd-gpu/bin/dp
+# mpirun -machinefile $PBS_NODEFILE -np $NP $EXEC train input.json > output
+
+# Execute LAMMPS computing tasks on GPU
+export LAMMPS_PLUGIN_PATH=/home/changruiwang-ICME/Software/deepmd-gpu/lib/deepmd_lmp
+EXEC=/home/changruiwang-ICME/Software/deepmd-gpu/bin/lmp
+mpirun -machinefile $PBS_NODEFILE -np $NP $EXEC -in *.in > output
+

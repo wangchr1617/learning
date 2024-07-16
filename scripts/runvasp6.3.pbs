@@ -1,0 +1,19 @@
+#PBS -N vasp_2d
+#PBS -l nodes=3:ppn=24
+#PBS -l walltime=400:00:00
+#PBS -q batch
+#PBS -V
+#PBS -S /bin/bash 
+          
+module load intel/2020.1.217
+
+NP=`cat $PBS_NODEFILE | wc -l`
+NN=`cat $PBS_NODEFILE | sort | uniq | tee /tmp/nodes.$$ | wc -l`
+    
+cat $PBS_NODEFILE > /tmp/nodefile.$$
+cd $PBS_O_WORKDIR
+ulimit -s unlimited
+
+# EXEC=/home/changruiwang-ICME/Software/vasp-vtst/bin/vasp_std
+EXEC=/home/changruiwang-ICME/Software/vasp.6.3.0/bin/vasp_std
+mpirun -machinefile $PBS_NODEFILE -np $NP $EXEC > output

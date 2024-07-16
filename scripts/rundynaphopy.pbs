@@ -1,0 +1,16 @@
+#PBS -N dynaphopy
+#PBS -l nodes=1:ppn=24
+#PBS -l walltime=36:00:00
+#PBS -q fast
+#PBS -V
+#PBS -S /bin/bash 
+          
+NP=`cat $PBS_NODEFILE | wc -l`
+NN=`cat $PBS_NODEFILE | sort | uniq | tee /tmp/nodes.$$ | wc -l`
+    
+cat $PBS_NODEFILE > /tmp/nodefile.$$
+cd $PBS_O_WORKDIR
+ulimit -s unlimited
+
+EXEC=~/anaconda3/envs/nep/bin/dynaphopy
+$EXEC input_file trajectory.lammpstrj -ts 0.001 -sfc FORCE_CONSTANTS > output

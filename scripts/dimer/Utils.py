@@ -1,0 +1,361 @@
+#!/usr/bin/env python
+"""
+A module to put all utility functions, including functions dealing with vectors
+"""
+import math
+import numpy as np
+import random
+
+#The following code are taken from ASE.
+Length = np.linalg.norm
+
+def Normalize(a):
+    """
+    Normalize a 3D vector to a vector of length 1.
+    """
+    if Length(a) == 0.00:
+        return np.array([0.00]*len(a))
+    else:
+        return a/Length(a)
+
+def ParallelVector(vector, base):
+    """
+    Get the projection of vector to a certain base.
+    The base should be normalized.
+    """
+    newbase = Normalize(base)
+    return np.vdot(vector, newbase)*newbase
+
+def PerpendicularVector(vector, base):
+    """
+    Remove the component of vector which is parallel to base,
+    so the rest of the vector is perpendicular to base.
+    """
+    return vector - ParallelVector(vector, base)
+
+def Angle(vec1, vec2):
+    """
+    Calculate the angle between two vectors, the unit is degree.
+    """
+    if Length(vec1) == 0 or Length(vec2) == 0:
+        print(("Lengths of the two vectors are  %f and %f " % (Length(vec1), Length(vec2))))
+        return 0
+    else:
+        angle_cos = np.vdot(vec1, vec2)/(Length(vec1)*Length(vec2))
+        return math.acos(angle_cos)*180.0/math.pi
+
+def RandomVector():
+    """
+    Return a random vector which length is smaller than 1.
+    This function is a clone of similiar function in the code of ART.
+    http://www.pmc.umontreal.ca/~mousseau/site_an/index.php?n=Main.Welcome
+    """
+    vec = np.array([0.00]*3)
+    while True:
+        for i in range(0, 3):
+            vec[i] = random.uniform(-1, 1)
+        if Length(vec) < 1:
+            return vec
+
+def RandomNormVec():
+    """
+    Return a normalized random vector with length of 1.0
+    """
+    return Normalize(RandomVector())
+
+def RandomPerpendicularVector(vec):
+    """
+    Create a random vector which is perpendicular to the given vector with a length of 1.0
+    """
+    randomvec = RandomVector()
+    angle = Angle(randomvec, vec)
+    while angle < 10 or angle > 170:
+        #print "Try %d with %s" %(i+1, randomvec)
+        randomvec = RandomVector()
+        angle = Angle(randomvec, vec)
+    return Normalize(np.cross(vec, randomvec))
+
+def RandomPerpendicularVectorXY(vec):
+    """
+    Create a random vector in the XY plane which is perpendicular to the given vector, with a length of 1.0.
+    """
+    newvec = np.array([0.0]*3)
+    if random.uniform(-1, 1) > 0:
+        newvec[0] = vec[1]
+        newvec[1] = (-1)*vec[0]
+    else:
+        newvec[0] = (-1)*vec[1]
+        newvec[1] = vec[0]
+    return Normalize(newvec)
+
+def NormalizeMode(Mode):
+    """
+    Normalize a MODE, which is a 3*N vector
+    """
+    length = NormMode(Mode)
+    if length == 0:
+        return np.array([0.00]*3)
+    else:
+        return Mode/length
+
+def NormMode(Mode):
+    """
+    the normalized size of the mode
+    If the mode is an array of forces, then NormMode would be the total force.
+    """
+    sum2 = np.vdot(Mode, Mode)
+    return math.sqrt(sum2)
+
+def RMSMode(Mode):
+    """
+    Get the root mean square of given mode
+    """
+    sum2 = np.vdot(Mode, Mode)
+    return math.sqrt(sum2/len(Mode))
+    
+def MaxMode(Mode):
+    """
+    Get the largest mode vector 
+    """
+    MaxNorm = 0.00
+    MaxIndex = 0
+    for i in range(0, len(Mode)):
+        tmpnorm = np.vdot(Mode[i], Mode[i])
+        if tmpnorm > MaxNorm:
+            MaxNorm = tmpnorm
+            MaxIndex = i
+    MaxNorm = math.sqrt(MaxNorm)
+    return (MaxNorm, MaxIndex)
+
+def CenterMode(Mode):
+    """
+    Put the shape center of the mode to [0, 0, 0]
+    """
+    center = np.array([0.00]*3)
+    for coord in Mode:
+        center += coord
+    center /= len(Mode)
+    for i in range(0, len(Mode)):
+        Mode[i] -= center
+    return Mode
+
+def ModeProjection(MODE, Direction):
+    """
+    decompose the mode in two: parallel to Direction and perpendicular to Direction
+    """
+    NumofAtoms = len(MODE)
+    ParaMode = []
+    PerpMode = []
+    if len(MODE) != len(Direction):
+        print(("The number of force vector is %d, not equal to the number of Direction %d" % (len(MODE), len(Direction))))
+        return (0, 0)
+    else:
+        for i in range(0, NumofAtoms):
+            ParaMode.append(ParallelVector(MODE[i], Direction[i]))
+            PerpMode.append(PerpendicularVector(MODE[i], Direction[i]))
+        ParaMode = np.array(ParaMode)
+        PerpMode = np.array(PerpMode)
+        return (ParaMode, PerpMode)
+
+def ReadMode(FileName):
+    """
+    Read the Dimer Vector from something like MODECAR in VASP or cp2k-1.restart in CP2K.
+    """
+    inp = open(FileName, "r")
+    lines = inp.readlines()
+    MODE = []
+    for line in lines:
+        newarray = []
+        for i in line.split():
+            newarray.append(float(i))
+        MODE.append(newarray)
+    MODE = np.array(MODE)
+    return MODE
+
+ReadDimerVector = ReadMode 
+
+def WriteMode(Mode, FileName):
+    """
+    Just print the mode in a more friendly way.
+    """
+    outp = open(FileName, "w")
+    lines = ""
+    for coord in Mode:
+        for i in range(0, len(coord)):
+            lines += "%f " % (coord[i])
+        lines += "\n"
+    outp.write(lines)
+    outp.close()
+    return True
+
+WriteVector = WriteMode
+
+def GetRotationMatrix(axis, angle):
+    """
+    Rotate the molecule, along certain vector by degree of angle.
+    This is to deal with the adsorption system.
+    Reference:
+    http://en.wikipedia.org/wiki/Rotation_matrix
+    http://zh.wikipedia.org/zh-cn/%E6%97%8B%E8%BD%AC%E7%9F%A9%E9%98%B5
+    """
+    u = Normalize(axis)
+    ux = u[0]
+    uy = u[1]
+    uz = u[2]
+    theta = math.radians(angle)
+    R = np.array([0.0]*9)
+    R.shape = (3, 3)
+    R[0, 0] = math.cos(theta) + ux*ux*(1 - math.cos(theta))
+    R[0, 1] = ux*uy*(1 - math.cos(theta)) - uz*math.sin(theta)
+    R[0, 2] = ux*uz*(1 - math.cos(theta)) + uy*math.sin(theta)
+    R[1, 0] = uy*ux*(1 - math.cos(theta)) + uz*math.sin(theta)
+    R[1, 1] = math.cos(theta) + uy*uy*(1 - math.cos(theta))
+    R[1, 2] = uy*uz*(1 - math.cos(theta)) - ux*math.sin(theta)
+    R[2, 0] = uz*ux*(1 - math.cos(theta)) - uy*math.sin(theta)
+    R[2, 1] = uz*uy*(1 - math.cos(theta)) + ux*math.sin(theta)
+    R[2, 2] = math.cos(theta) + uz*uz*(1 - math.cos(theta))
+    #debug
+    #print R
+    return R
+        
+def GetXRotationMatrix(angle):
+    """
+    Rotate a molecule along X axis by certain angle
+    """
+    theta = math.radians(angle)
+    Rx = np.array([0.00]*9)
+    Rx.shape = (3, 3)
+    Rx[0, 0] = 1.0
+    Rx[1, 1] = math.cos(theta)
+    Rx[1, 2] = (-1)*math.sin(theta)
+    Rx[2, 1] = math.sin(theta)
+    Rx[2, 2] = math.cos(theta)
+    return Rx
+
+def GetYRotationMatrix(angle):
+    """
+    Rotate a molecule along Y axis by certain angle
+    """
+    theta = math.radians(angle)
+    Ry = np.array([0.0]*9)
+    Ry.shape = (3, 3)
+    Ry[0, 0] = math.cos(theta)
+    Ry[2, 0] = math.sin(theta)
+    Ry[1, 1] = 1.0
+    Ry[2, 0] = (-1)*math.sin(theta)
+    Ry[2, 2] = math.cos(theta)
+    return Ry
+
+def GetZRotationMatrix(angle):
+    """
+    Rotate a molecule along Z axis by certain angle
+    """
+    theta = math.radians(angle)
+    Rz = np.array([0.0]*9)
+    Rz.shape = (3, 3)
+    Rz[0, 0] = math.cos(theta)
+    Rz[0, 1] = (-1)*math.sin(theta)
+    Rz[1, 0] = math.sin(theta)
+    Rz[1, 1] = math.cos(theta)
+    Rz[2, 2] = 1.0
+    return Rz
+
+def RotateByMatrix(vector, R):
+    """
+    A function to rotate a single vector by the RotationMatrix R
+    """
+    return np.dot(R, vector)
+    
+def CheckXYZ(FileName):
+    """
+    A function to check if the XYZ file is correct. If it's not correct, it's no need reading this file.
+    """
+    inp = open(FileName, "r")
+    lines = inp.readlines()
+    inp.close()
+    if len(lines) < 3:
+        print(("XYZ file %s is less than 3 lines. This is not a correct XYZ file." % (FileName)))
+        return False
+    else:
+        try:
+            NumofAtoms = int(lines[0])
+        except ValueError as err:
+            print(("Error: %s .The first line of the XYZ block is not an integer." % (err)))
+            return False
+        except:
+            print("Error: Unknown except")
+            return False
+        if len(lines) < NumofAtoms + 2:
+            print(("There should be at least %d lines in the XYZ file, but only %d lines is found." % (NumofAtoms +2, len(lines))))
+            return False
+        else:
+            for i in range(0, NumofAtoms):
+                array = lines[i+2].strip().split()
+                if len(array) < 4:
+                    print(("There should be at least 4 columns in one line. The coordinates of atom %s are wrong." % (i + 1)))
+                    return False
+                else:
+                    try:
+                        str(array[0])
+                        float(array[1])
+                        float(array[2])
+                        float(array[3])
+                    except ValueError as err:
+                        print(("Error: %s. The coordinates of atom %d are wrong. " % (err, i+1)))
+                        return False
+                    except:
+                        print(("Error! The coordinates of atom %d are wrong." % (i+1)))
+                        return False
+    return True
+
+def CheckDir(DirName):
+    """
+    Check if one dir exists or not. If not, create it.
+    """
+    if os.path.exists(DirName):
+        if os.path.isdir(DirName):
+            print(("Directory %s exists" % (DirName)))
+        else:
+            print(("File %s exists, but is not a directory. Please check." % (DirName)))
+    else:
+        print(("Directory %s does not exist.Creating now." % (DirName)))
+        os.mkdir(DirName)
+    return True
+
+def PrintYesNo(CONDITION):
+    """
+    A small function to return YES/NO for True/False
+    """
+    if CONDITION:
+        return "YES"
+    else:
+        return "NO"
+
+def Skewness(array):
+    """
+    The skewness of a list: the third moment of distribution
+    This function returns the cube root of the skewness of a list
+    http://en.wikipedia.org/wiki/Skewness
+    http://en.wikipedia.org/wiki/Moment_%28mathematics%29
+    """
+    u = np.mean(array)
+    newlist = []
+    sigma = np.std(array)
+    for i in range(0, len(array)):
+        newlist.append((array[i]-u)**3)
+    skewness = np.mean(newlist)
+    if skewness == 0.00 or sigma == 0:
+        return 0.00
+    elif skewness < 0.00:
+        return (-1)*math.pow(abs(skewness), 1.0/3.0)/sigma
+    else:
+        return math.pow(skewness, 1.0/3.0)/sigma
+
+def ReadEnergy(FileName):
+    """
+    A dirty function to read energy from file.
+    """
+    inp = open(FileName, "r")
+    lines = inp.readlines()
+    Energy = float(lines[0])
+    return Energy

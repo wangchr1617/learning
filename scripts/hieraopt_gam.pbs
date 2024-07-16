@@ -1,0 +1,189 @@
+#PBS -N opt_gam
+#PBS -l nodes=3:ppn=24
+#PBS -l walltime=600:00:00
+#PBS -q batch
+#PBS -V
+#PBS -S /bin/bash
+
+source /opt/intel/compilers_and_libraries_2018/linux/bin/compilervars.sh intel64
+source /opt/intel/mkl/bin/mklvars.sh intel64
+source /opt/intel/impi/2018.1.163/bin64/mpivars.sh
+
+NP=`cat $PBS_NODEFILE | wc -l`
+NN=`cat $PBS_NODEFILE | sort | uniq | tee /tmp/nodes.$$ | wc -l`
+
+cat $PBS_NODEFILE > /tmp/nodefile.$$
+cd $PBS_O_WORKDIR
+ulimit -s unlimited
+
+### -------------- Variable ---------------- ###
+GAM=/opt/software/vasp/vasp6.4.0/bin/vasp_gam
+KPAR=1
+KSPACING=2.0
+### ----------------------- ---------------- ###
+
+### ------------- Pretrainment ------------- ###
+if [ -e tmp ]; then
+  rm -rf INCAR low/ medium/ high/ CONTCAR OSZICAR OUTCAR
+fi
+if ! [ -e POTCAR ]; then
+  echo 103 | vaspkit
+fi
+natom=`sed -n '7p' POSCAR|awk '{for(i = 1; i <= NF; i++) {sum += $i} {printf("%d", sum)}}'`
+if test $(($natom)) -lt 30; then
+  IBRION=1
+  POTIM=0.5
+  LREAL=F
+else
+  IBRION=2
+  POTIM=0.3
+  LREAL=A
+fi
+# 可以自行修改、增添、注释这个INCAR模板，但不要删除
+cat > INCAR << EOF
+SYSTEM = bulk
+#IOPTCELL = 1 1 0 1 1 0 0 0 0
+
+KPAR = $KPAR
+NCORE = 12
+ISTART = 0
+ICHARG = 2
+KSPACING = $KSPACING
+#ISYM = 0
+IVDW = 12
+
+ALGO = Normal
+NELM = 120
+NELMIN = 4
+EDIFF = 1E-05
+
+ISIF = 3
+IBRION = $IBRION
+POTIM = $POTIM
+NSW = 50
+EDIFFG = -1E-02
+
+ENCUT = 600
+ISMEAR = 0
+SIGMA = 0.05
+PREC = A
+LREAL = $LREAL
+ADDGRID = .T.
+EOF
+### ---------------------------------------- ###
+
+### -------------- Template ---------------- ###
+mkdir template
+cp INCAR POSCAR POTCAR template/
+### ---------------------------------------- ###
+
+### ------------- Low accuracy ------------- ###
+cp -rf template/ low/
+cd low/
+
+sed -i "/ISYM/d" INCAR
+sed -i "s/ALGO = /ALGO = Fast #/" INCAR # ALGO=VeryFast要求vasp.6以上版本
+sed -i "s/EDIFF = /EDIFF = 1E-03 #/" INCAR
+sed -i "s/IBRION = /IBRION = 2 #/" INCAR
+sed -i "s/POTIM = /POTIM = 0.5 #/" INCAR
+sed -i "s/NSW = /NSW = 50 #/" INCAR
+sed -i "/EDIFFG/d" INCAR
+sed -i "/ENCUT/d" INCAR
+sed -i "s/SIGMA = /SIGMA = 0.1 #/" INCAR
+sed -i "s/PREC = /PREC = N #/" INCAR
+mpirun -machinefile $PBS_NODEFILE -np $NP $GAM > output
+
+time=`grep Elapsed OUTCAR`
+out=`tail -1 OUTCAR`
+cat OSZICAR >> ../OSZICAR
+echo -e "Low accuracy: ${time}, ${out}" >> ../tmp
+cd ..
+### ---------------------------------------- ###
+
+### ----------- Medium accuracy ------------ ###
+cp -rf template/ medium/
+cp low/CONTCAR medium/POSCAR
+mv low/CHGCAR low/WAVECAR medium/
+cd medium/
+
+sed -i "/ISTART/d" INCAR
+sed -i "s/ICHARG = /ICHARG = 1 #/" INCAR
+sed -i "s/ALGO = /ALGO = Fast #/" INCAR 
+sed -i "s/EDIFF = /EDIFF = 1E-04 #/" INCAR
+sed -i "s/IBRION = /IBRION = 2 #/" INCAR
+sed -i "s/POTIM = /POTIM = 0.5 #/" INCAR
+sed -i "s/NSW = /NSW = 50 #/" INCAR
+sed -i "/EDIFFG/d" INCAR
+sed -i "/ENCUT/d" INCAR
+sed -i "s/SIGMA = /SIGMA = 0.1 #/" INCAR
+mpirun -machinefile $PBS_NODEFILE -np $NP $GAM > output
+
+time=`grep Elapsed OUTCAR`
+out=`tail -1 OUTCAR`
+cat OSZICAR >> ../OSZICAR
+echo -e "Medium accuracy: ${time}, ${out}" >> ../tmp
+
+rra=`grep "required" OUTCAR`
+if [ -z "$rra" ]
+then
+  np=`echo $(( $natom + 8 ))`
+  nxdat=`cat XDATCAR | wc -l`
+  nend=$(( $nxdat - $np ))
+  nbegin=$(( $nend - $np + 1 ))
+  sed -n "${nbegin},${nend}p" XDATCAR > medium.vasp
+fi
+cd ..
+### ---------------------------------------- ###
+
+### ------------ High accuracy ------------- ###
+cp -rf template/ high/
+if [ -f medium/medium.vasp ]
+then
+  cp medium/medium.vasp high/POSCAR
+else
+  cp medium/CONTCAR high/POSCAR
+fi
+mv medium/CHGCAR medium/WAVECAR high/
+cd high/
+sed -i "/ISTART/d" INCAR
+sed -i "s/ICHARG = /ICHARG = 1 #/" INCAR
+mpirun -machinefile $PBS_NODEFILE -np $NP $GAM > output
+time=`grep Elapsed OUTCAR`
+out=`tail -1 OUTCAR`
+cat OSZICAR >> ../OSZICAR
+echo -e "High accuracy: ${time}, ${out}" >> ../tmp
+### ---------------------------------------- ###
+
+x=0
+until ((x > 4))
+do
+rra=`grep "required" OUTCAR`
+if [ -z "$rra" ]
+then
+  echo -e "Please check the results and carefully judge whether it is possible to continue the calculation." >> ../tmp
+  ctn=`grep "copy CONTCAR" output`
+  if [ -z "$ctn" ]
+  then
+    echo -e "Calculation has been stopped and please check the structure carefully." >> ../tmp
+    ((x=x+5))
+  else
+    echo -e "I have copied the CONTCAR to POSCAR and continue calculation automatically." >> ../tmp
+    cp POSCAR POSCAR_$x
+    cp CONTCAR POSCAR
+    mpirun -machinefile $PBS_NODEFILE -np $NP $GAM > output
+    time=`grep Elapsed OUTCAR`
+    out=`tail -1 OUTCAR`
+    cat OSZICAR >> ../OSZICAR
+    echo -e "High accuracy (continued): ${time}, ${out}" >> ../tmp
+    ((x=x+1))
+  fi
+else
+  echo -e "Reached required accuracy." >> ../tmp
+  ((x=x+5))
+fi
+done
+rm -f WAVECAR CHG CHGCAR
+cp CONTCAR OUTCAR ../
+cd ..
+rm -rf template/
+
