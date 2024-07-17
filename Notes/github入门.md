@@ -75,3 +75,48 @@ git pull origin master
 git config --global core.autocrlf input
 ```
 避免由于回车（CR）和换行（LF）导致的提交错误。
+
+## 通过 https / ssh 协议推拉代码
+
+Git 可以使用以下四种协议进行资料的传输：
+
+- 本地协议（Local）
+- HTTP/HTTPS 协议
+- SSH（Secure Shell）协议
+- git 协议
+
+其中，本地协议由于目前大都是进行远程开发和共享代码所以一般不常用，而 git 协议由于缺乏授权机制且较难架设所以也不常用。
+
+目前 Gitee 支持使用 HTTPS 协议和 ssh 协议进行代码的推送/拉取。
+
+使用 https 协议对初学者来说会比较方便，复制 https url 然后到 git Bash 里面直接用 clone 命令克隆到本地就好了，但是每次fetch和push代码都需要输入账号和密码，这也是 https 协议的麻烦之处。
+
+而使用 SSH 协议克隆需要在克隆之前先配置和添加好 SSH key，因此，如果用户想要使用 SSH url 克隆的话，必须是这个仓库的拥有者。
+另外，使用 SSH 协议默认是每次 fetch 和 push 代码都不需要输入账号和密码。
+
+### 生成/添加SSH公钥
+
+你可以按如下命令来生成 sshkey:
+```
+ssh-keygen -t ed25519 -C "xxxxx@xxxxx.com" # 这里的 xxxxx@xxxxx.com 只是生成的 sshkey 的名称，并不约束或要求具体命名为某个邮箱。
+```
+为方便起见，按照提示完成三次回车即可生成 ssh key。
+
+注意，当系统提示`Enter a file in which to save the key`时，如果以前创建了 SSH 密钥，则 ssh-keygen 可能会重写另一个密钥，在这种情况下，我们建议创建自定义命名的 SSH 密钥。 为此，请键入默认文件位置，并将 id_ALGORITHM 替换为自定义密钥名称。
+
+如果需要使用 SSH 密钥密码，在提示符`Enter passphrase (empty for no passphrase):`下，键入安全密码。
+
+在Git Bash中通过查看 ~/.ssh/id_ed25519.pub 和 ~/.ssh/id_ed25519 文件内容，获取到你的 public key 和 private key:
+```
+cat ~/.ssh/id_ed25519.pub
+cat ~/.ssh/id_ed25519
+```
+
+复制生成后的 ssh key，通过仓库主页 「管理」->「部署公钥管理」->「添加部署公钥」 ，添加生成的 public key 添加到仓库中。
+
+添加后，在终端（Terminal）中输入
+```
+ssh -T git@gitee.com
+```
+
+首次使用需要确认并添加主机到本机SSH可信列表。若返回 `Hi XXX! You've successfully authenticated, but Gitee.com does not provide shell access.` 内容，则证明添加成功。添加成功后，就可以使用SSH协议对仓库进行操作了。
