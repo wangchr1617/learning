@@ -1,7 +1,7 @@
-#PBS -N static
-#PBS -l nodes=3:ppn=24
+#PBS -N scf
+#PBS -l nodes=1:ppn=32
 #PBS -l walltime=600:00:00
-#PBS -q batch
+#PBS -q manycores
 #PBS -V
 #PBS -S /bin/bash 
           
@@ -138,4 +138,3 @@ echo $conv >> ../tmp
 cd ..
 fi
 done
-

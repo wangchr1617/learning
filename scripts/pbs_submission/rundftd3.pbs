@@ -1,7 +1,7 @@
-#PBS -N test
-#PBS -l nodes=1:ppn=24
+#PBS -N dftd3
+#PBS -l nodes=1:ppn=32
 #PBS -l walltime=24:00:00
-#PBS -q batch
+#PBS -q manycores
 #PBS -V
 #PBS -S /bin/bash 
           
@@ -13,7 +13,7 @@ cd $PBS_O_WORKDIR
 ulimit -s unlimited
 ulimit -c unlimited
 
-export OMP_NUM_THREADS=6
+export OMP_NUM_THREADS=8
 EXEC=/home/changruiwang-ICME/Software/NEP_CPU-main/test_dftd3/a.out
 
 # Calculate NEP only.
@@ -29,4 +29,4 @@ EXEC=/home/changruiwang-ICME/Software/NEP_CPU-main/test_dftd3/a.out
 # $EXEC nep.txt train.xyz 3.xyz 3 pbe 12 6 > output
 
 # Subtract DFT-D3 from existing data.
-$EXEC nep.txt train.xyz 4.xyz 4 pbe 12 6 > output
+# $EXEC nep.txt train.xyz 4.xyz 4 pbe 12 6 > output

@@ -20,13 +20,15 @@ FCL+=-mkl=sequential  # 修改后
 
 集群2使用 Intel 2015 编译时，由于 Intel 没有编译 fftw3xf 库，需要拷贝以下路径中的 `fftw3xf` 文件到自定义文件夹：
 ```sh
-/opt/intel/compilers_and_libraries/linux/mkl/interfaces/fftw3xf
+/opt/intel/mkl/interfaces/fftw3xf
 ```
 然后在该文件夹下执行以下命令编译 `libfftw3xf_intel.a` 文件：
 ```sh
 make libintel64
 ```
 将生成的 `.a` 文件路径添加到 `makefile.include` 文件的 `OBJECTS` 行。
+
+另外，集群2的 gcc/8.3 有问题，编译时用默认的 gcc 即可。
 
 ---
 
