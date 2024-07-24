@@ -1,7 +1,23 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+脚本名称: calculate_cohesive_energy.py
+用途: 计算给定结构的晶胞体积并根据cohesive.out文件计算每个原子的能量。
+用法: python calculate_cohesive_energy.py
+"""
+
 import numpy as np
 import re
 
 def calculate_cell_volume(xyz_file):
+    """
+    计算XYZ文件中的晶胞体积
+    参数:
+        xyz_file (str): XYZ文件的路径
+    返回:
+        float: 晶胞体积
+    """
     with open(xyz_file, 'r') as file:
         lines = file.readlines()
         lattice_line = lines[1]
@@ -20,9 +36,11 @@ def calculate_cell_volume(xyz_file):
         else:
             raise ValueError("Lattice parameter not found in the .xyz file.")
 
+# 计算模型的晶胞体积
 volume = calculate_cell_volume('model.xyz')
-natoms = 2
+natoms = 2  # 设置原子数量
 
+# 读取cohesive.out文件并写入ev.txt文件
 with open('cohesive.out', 'r') as f, open('ev.txt', 'w') as fout:
     for line in f:
         # 分割每行为scale和energy
@@ -38,5 +56,3 @@ with open('cohesive.out', 'r') as f, open('ev.txt', 'w') as fout:
         fout.write(f"{new_volume:.10e},{new_energy_per_atom:.10e}\n")
 
 print("The ev.txt file has been created with updated values.")
-
-

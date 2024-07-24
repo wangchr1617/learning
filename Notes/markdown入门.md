@@ -104,12 +104,43 @@ $$
 
 **常用符号**
 
-| 名称  | 示例                     | 显示                             |
-|-----|------------------------|--------------------------------|
-| 上下标 | A = x_1^2 + x_2^2      | $A = x_1^2 + x_2^2$            |
-| 根号  | \sqrt{3} 或 \sqrt[3]{x} | $\sqrt{3}$ 或 $\sqrt[3]{x}$     |    
+| 名称  | 示例                 | 显示                       |
+|-----|--------------------|--------------------------|
+| 上下标 | A=x_1^2+x_2^2      | $A=x_1^2+x_2^2$          |
+| 根号  | \sqrt{3} 或 \sqrt[3]{x} | $\sqrt{3}$ 或 $\sqrt[3]{x}$ |    
 | 分数  | \frac{1}{2} 或 \dfrac{x}{y} | $\frac{1}{2}$ 或 $\dfrac{x}{y}$ |            
 
 **特殊运算符号**
 
+| markdown代码 | 显示        | markdown代码 | 显示 |
+|------------|-----------|-|-|
+| \pm        | $\pm$     | \mp | $\mp$ |
+| \div       | $\div$    | \times | $\times$ |
+| \geq       | $\geq$    | \leq | $\leq$ |
+| \approx    | $\approx$ | \neq | $\neq$ |
+| \sum       | $\sum$    | \equiv | $\equiv$ |
+| \log       | $\log$    | \prod | $\prod$ |
+| \lg        | $\lg$     | \ln | $\ln$ |
+| \int       | $\int$    | \sin | $\sin$ |
+| \lim       | $\lim$    | \iint | $\iint$ |
+| \notin     | $\notin$  | \in | $\in$ |
+| \subset    | $\subset$ | | |
+
 **希腊字母**
+
+| markdown代码 | 显示         | markdown代码 | 显示        |
+|------------|------------|------------|-----------|
+| \alpha     | $\alpha$   | \beta      | $\beta$   |
+| \Gamma     | $\Gamma$   | \gamma     | $\gamma$  |
+| \Delta     | $\Delta$   | \delta     | $\delta$  |
+| \epsilon   | $\epsilon$ | \zeta      | $\zeta$   |
+| \eta       | $\eta$     | \Theta     | $\Theta$  |
+| \theta     | $\theta$   | \Lambda    | $\Lambda$ |
+| \lambda    | $\lambda$  | \mu        | $\mu$     |
+| \nu        | $\nu$      | \xi        | $\xi$     |
+| \pi        | $\pi$      | \rho       | $\rho$    |
+| \Sigma     | $\Sigma$   | \sigma     | $\sigma$  |
+| \Phi       | $\Phi$     | \phi       | $\phi$    |
+| \chi       | $\chi$     | \Psi       | $\Psi$    |
+| \psi       | $\psi$     | \Omega     | $\Omega$  |
+| \omega     | $\omega$   | \tau       | $\tau$    |

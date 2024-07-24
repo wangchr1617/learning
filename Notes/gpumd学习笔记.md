@@ -16,17 +16,26 @@
 
 ---
 
+### 前、后处理仓库安装
+Windows 系统中安装 calorine 时，注意修改`calorine/src/nepy/nepy.cpp`文件中的
+```
+#include <unistd.h>
+```
+为
+```
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+```
+即可`pip install .`成功安装 calorine。
+
+---
+
 ### 训练集生成策略
 
-1. 完美结构
-
-2. 应变与微扰
-
-3. 单空位结构
-
-4. 多空位结构
-
-5. 表面结构
+参见 [GPUMD-wizard.ipynb]
 
 ### 单点计算和训练集提取
 

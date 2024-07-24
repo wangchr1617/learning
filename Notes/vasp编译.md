@@ -1,14 +1,17 @@
 # VASP 编译
 
-注意，不同版本的 VASP 编译过程不同，下面以在集群3上编译VASP 6.3.0为例。
+注意，不同版本的 VASP 编译过程不同，不同集群的编译环境也有所不同。
+
+---
+
+### 集群3 编译 VASP 6.3.0
 
 编译前需要`ssh cu02`切换到编译节点（cu02），并加载编译环境如下：
 ```sh
 module load intel/2020.1.217
 module load gcc/9.3
-ulimit -s unlimited
 ```
-下载安装包并解压。`cd vasp.6.3.0/`进入安装目录，复制 `makefile.include` 文件：
+下载 VASP 安装包并解压。`cd vasp.6.3.0/`进入安装目录，复制 `makefile.include` 文件：
 ```sh
 cp arch/makefile.include.intel ./makefile.include
 ```
@@ -18,23 +21,39 @@ FCL+=-qmkl=sequential  # 原行
 FCL+=-mkl=sequential  # 修改后
 ```
 
-集群2使用 Intel 2015 编译时，由于 Intel 没有编译 fftw3xf 库，需要拷贝以下路径中的 `fftw3xf` 文件到自定义文件夹：
-```sh
-/opt/intel/mkl/interfaces/fftw3xf
-```
-然后在该文件夹下执行以下命令编译 `libfftw3xf_intel.a` 文件：
-```sh
-make libintel64
-```
-将生成的 `.a` 文件路径添加到 `makefile.include` 文件的 `OBJECTS` 行。
+---
 
-另外，集群2的 gcc/8.3 有问题，编译时用默认的 gcc 即可。
+### 集群2 编译 VASP 5.4.4
+
+编译前需要`ssh cu10`切换到编译节点（cu10），并加载编译环境如下：
+```
+source /opt/intel/composer_xe_2015/bin/compilervars.sh intel64
+source /opt/intel/mkl/bin/intel64/mklvars_intel64.sh
+source /opt/intel/impi/5.0.2.044/bin64/mpivars.sh
+```
+集群2编译 VASP 5.4.4 时用默认的 gcc 即可。
+
+下载 VASP 安装包并解压。`cd vasp.5.4.4/`进入安装目录，复制 `makefile.include` 文件：
+```sh
+cp arch/makefile.include.linux_intel ./makefile.include
+```
+
+---
+
+### 编译 Intel fftw3 库
+**[2024-07-20] 集群2已经不再需要手动编译intel fftw3了**
+
+集群2使用 Intel 2015 时，由于没有编译 fftw3xf 库，需要拷贝 `fftw3xf` 文件夹到自定义文件夹：
+```sh
+cp /opt/intel/mkl/interfaces/fftw3xf .
+```
+然后在该文件夹下 `make libintel64` 编译 `libfftw3xf_intel.a` 文件，并将生成的 `.a` 文件路径添加到 `makefile.include` 文件的 `OBJECTS` 行。
 
 ---
 
 ### 固定基矢
 
-固定晶格基矢有两种方法：
+结构优化过程中固定晶格基矢有两种方法：
 
 **方法一**
 
@@ -56,22 +75,17 @@ patch -p0 < stress_relax_finner.patch
 ```
 输出 `succeeded` 表示补丁已经打好。
 
-然后使用以下命令开始编译：
-```sh
-make all
-# 或
-make DEPS=1 -j36 <target> # 这里的<target>包括std、gam、ncl
-```
-
 ---
 
-### 添加 VTST 功能
-为实现过渡态结构的搜索，需要把 VTST 的一些功能添加到 VASP 中。访问 [VTST 官网](https://theory.cm.utexas.edu/vtsttools/download.html) 下载安装包（例如`vtstcode-198.tgz`）并解压。
+### 集群3 VASP 6.3.0 添加 VTST 功能
+为实现过渡态结构的搜索，需要把 VTST 的一些功能添加到 VASP 中。
+访问 [VTST 官网](https://theory.cm.utexas.edu/vtsttools/download.html) 下载安装包（例如`vtstcode-198.tgz`）并拖入集群解压。
 
-以编译好的 `vasp.6.3.0` 为例：
 ```sh
 cp -r vasp.6.3.0/ vasp-vtst/
+cp vasp-vtst/src/chain.F vasp-vtst/src/chain.F.copy
 cp vtstcode6.3/* vasp-vtst/src/
+cd vasp-vtst/
 ```
 编辑 `src/main.F` 文件，替换以下内容
 ```fortran
@@ -95,8 +109,7 @@ CALL chain_init( T_INFO, IO)
 ```makefile
 bfgs.o dynmat.o instanton.o lbfgs.o sd.o cg.o dimer.o bbm.o \
 fire.o lanczos.o neb.o qm.o \
-pyamff_fortran/*.o ml_pyamff.o\
-opt.o 
+pyamff_fortran/*.o ml_pyamff.o opt.o \
 ```
 编辑 `src/makefile` 文件，找到 `LIB` 变量，修改如下：
 ```makefile
@@ -106,11 +119,57 @@ LIB= lib parser pyamff_fortran
 ```makefile
 dependencies: sources libs
 ```
-最后，编译 VASP 即可。
 
 ---
 
-编译完成后记得退出编译节点：
+### 集群2 VASP 5.4.4 添加 VTST 功能
+为实现过渡态结构的搜索，需要把 VTST 的一些功能添加到 VASP 中。
+访问 [VTST 官网](https://theory.cm.utexas.edu/vtsttools/download.html) 下载安装包（例如`vtstcode-198.tgz`）并拖入集群解压。
+
 ```sh
-logout
+cp -r vasp.5.4.4/ vasp-vtst/
+cp vasp-vtst/src/chain.F vasp-vtst/src/chain.F.copy
+cp vtstcode5/* vasp-vtst/src/
+cd vasp-vtst/
 ```
+编辑 `src/main.F` 文件，替换以下内容
+```fortran
+CALL CHAIN_FORCE(T_INFO%NIONS,DYN%POSION,TOTEN,TIFOR, &
+     LATT_CUR%A,LATT_CUR%B,IO%IU6)
+```
+为
+```fortran
+CALL CHAIN_FORCE(T_INFO%NIONS,DYN%POSION,TOTEN,TIFOR, &
+     TSIF,LATT_CUR%A,LATT_CUR%B,IO%IU6)
+```
+编辑 `src/.objects` 文件，在 `chain.o` 之前插入以下内容：
+```makefile
+bfgs.o dynmat.o instanton.o lbfgs.o sd.o cg.o dimer.o bbm.o \
+fire.o lanczos.o neb.o qm.o opt.o \ 
+```
+
+---
+
+### 添加 VASPsol 功能
+访问[网址](https://github.com/henniggroup/VASPsol)下载安装包并拖入集群解压。
+```sh
+cp solvation.F ../vasp-vtst/src/solvation.F
+```
+并在`makefile.include`中的`CPP_OPTIONS=`后面添加`-Dsol_compat \`即可。
+
+---
+
+### 编译
+
+然后使用以下命令开始编译：
+```sh
+make -j all
+# 或
+make DEPS=1 -j36 <target> # 这里的 all 和 <target> 包括 std、gam、ncl
+```
+
+在`makefile.include`中指定`OFLAG = -O3`可以提高编译性能。
+
+编译完成后记得`logout`退出编译节点：
+
+---
