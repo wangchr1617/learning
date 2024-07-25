@@ -6,11 +6,18 @@
 ### 后处理技巧
 
 
-LAMMPS 支持热样式“yaml”，对于“自定义”样式热力学输出，可以使用thermo_modify line yaml将格式更改为YAML。
-
-使用 python 能方便地从日志文件中提取和解析这些数据：
+LAMMPS 的 in 文件中，使用 `thermo_modify line yaml` 将自定义的热力学量输出为 YAML 格式，
+以方便 python 从日志文件 `log.lammps` 中提取和解析这些数据：
 ```
 import re, yaml
+import pandas as pd
+import matplotlib.pyplot as plt
+
+plt.rcParams['font.size'] = 14
+plt.rcParams['axes.unicode_minus'] = False
+plt.rcParams['xtick.direction'] = 'in'
+plt.rcParams['ytick.direction'] = 'in'
+	
 try:
     from yaml import CSafeLoader as Loader
 except ImportError:
@@ -25,5 +32,11 @@ with open("log.lammps") as f:
 thermo = list(yaml.load_all(docs, Loader=Loader))
  
 print("Number of runs: ", len(thermo))
-print(thermo[1]['keywords'][4], ' = ', thermo[1]['data'][2][4])
+print("Columns of run 0: ", thermo[0]['keywords'][:])
+
+print("-----------------------------")
+
+df = pd.DataFrame(data=thermo[1]['data'], columns=thermo[1]['keywords'])
+fig = df.plot(x='Temp', y=['Cella', 'Cellb', 'Cellc',], ylabel='Cell length')
+plt.savefig('cell_length.png', bbox_inches='tight')
 ```

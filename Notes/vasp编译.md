@@ -40,14 +40,36 @@ cp arch/makefile.include.linux_intel ./makefile.include
 
 ---
 
-### 编译 Intel fftw3 库
-**[2024-07-20] 集群2已经不再需要手动编译intel fftw3了**
+### 集群2 注意事项
+
+1. 编译Intel fftw3库
+
+**[2024-07-20] 集群2已经不再需要手动编译Intel fftw3库了**
 
 集群2使用 Intel 2015 时，由于没有编译 fftw3xf 库，需要拷贝 `fftw3xf` 文件夹到自定义文件夹：
 ```sh
 cp /opt/intel/mkl/interfaces/fftw3xf .
 ```
 然后在该文件夹下 `make libintel64` 编译 `libfftw3xf_intel.a` 文件，并将生成的 `.a` 文件路径添加到 `makefile.include` 文件的 `OBJECTS` 行。
+
+2. `libmkl_intel_lp64.so: cannot open shared object file`
+
+通过在提交脚本中设置环境变量 `LD_LIBRARY_PATH` 来解决：
+```sh
+export LD_LIBRARY_PATH=/opt/intel/mkl/lib/intel64:$LD_LIBRARY_PATH
+```
+
+3. `/lib64/libc.so.6: version GLIBC_2.14' not found`
+同上，设置环境变量：
+```
+export LD_LIBRARY_PATH=/opt/glibc-2.14/lib:$LD_LIBRARY_PATH:
+```
+或在上一步的环境变量后追加一个环境变量：
+```
+export LD_LIBRARY_PATH=/opt/intel/mkl/lib/intel64:$LD_LIBRARY_PATH:/opt/glibc-2.14/lib/
+```
+通过 `echo $LD_LIBRARY_PATH` 检查环境变量设置是否正确。
+
 
 ---
 
