@@ -97,6 +97,9 @@ patch -p0 < stress_relax_finner.patch
 ```
 输出 `succeeded` 表示补丁已经打好。
 
+`IOPTCELL = 1 0 0 1 1 0 0 0 0` 即可固定 Z 轴结构优化；
+`IOPTCELL = 1 0 0 0 1 0 0 0 1` 即可固定正交胞结构优化。
+
 ---
 
 ### 集群3 VASP 6.3.0 添加 VTST 功能
