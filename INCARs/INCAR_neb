@@ -1,6 +1,6 @@
 SYSTEM = GeTe
 
-NCORE = 6
+NCORE = 6 # NCORE*IMAGES 必须能被总核数整除。本例总核数 = 42。
 ISTART = 0
 ICHARG = 2
 LCHARG = .F.
@@ -8,19 +8,22 @@ LWAVE = .F.
 KSPACING = 0.2
 KGAMMA = .T.
 
-ALGO = Normal
+ALGO = Fast
 NELM = 120
 NELMIN = 4
 EDIFF = 1E-07
 
-ISIF = 2
+ISIF = 2 # ISIF=3时，必须设置IOPT=3或7；
 IBRION = 3
 NSW = 100
-EDIFFG = -1E-01
+EDIFFG = -0.03
 POTIM = 0
 
-IOPT = 3
-IMAGES = 7
+IOPT = 1 # 1、2适合精收敛；3、7适合粗收敛；
+IMAGES = 7 # 插点数
+ICHAIN = 0 
+LCLIMB = .T. 
+SPRING = -5 # 弹簧力常数
 MAXMOVE = 0.2
 TIMESTEP = 0.1
 
@@ -30,4 +33,3 @@ SIGMA = 0.02
 PREC = A
 LREAL = A
 ADDGRID = .T.
-

@@ -1,16 +1,18 @@
 SYSTEM = GeTe
 
+NCORE = 8
 ISTART = 0
 ICHARG = 2
 LCHARG = .F.
 LWAVE = .F.
+KSPACING = 0.1
+KGAMMA = .T.
 ISYM = 0
-# IVDW = 12
 
-ALGO = Normal
+ALGO = Fast
 NELM = 120
 NELMIN = 4
-EDIFF = 1E-08
+EDIFF = 1E-07
 
 ISIF = 3
 IBRION = 8
@@ -23,4 +25,3 @@ SIGMA = 0.02
 PREC = A
 LREAL = A
 ADDGRID = .T.
-
