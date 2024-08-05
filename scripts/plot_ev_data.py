@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """
 脚本名称: plot_ev_data.py
 用途: 读取ev.txt文件中的数据并绘制能量-体积曲线。
