@@ -1,6 +1,14 @@
-# 文件名: nep_evaluate.py
-# 运行方法: python nep_evaluate.py nep_1.txt model.xyz 1
-# 功能描述: 使用NEP计算器计算给定模型的能量，并将结果保存到文件中。
+'''
+文件名: nep_evaluate.py
+
+运行方法: 
+grep Lattice model.xyz | awk '{print $21}' | cut -d '=' -f 2 > dft_energy.txt
+grep Lattice model.xyz | awk '{print $20}' | cut -d '=' -f 2 > config_type.txt
+grep -B 1 'Lattice' model.xyz | grep -v 'Lattice' | grep -v -- '--' > atoms_num.txt
+python nep_evaluate.py nep.txt model.xyz 1
+
+功能描述: 使用NEP计算器计算给定模型的能量，并将结果保存到文件中。结合脚本analyze_energy_data.py使用。
+'''
 
 from ase.io import read
 from pynep.calculate import NEP

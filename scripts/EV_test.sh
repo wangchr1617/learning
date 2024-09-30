@@ -11,3 +11,14 @@ do
   sed -i "2s/1.0/$i/g" $i/POSCAR
 done
 
+# natoms=`sed -n '7p' POSCAR | awk '{for(i = 1; i <= NF; i++) {sum += $i} {printf("%d", sum)}}'`
+# for i in *
+# do
+#   if [ -e $i/OUTCAR ]
+#   then
+#     ene=$(grep " without" $i/OUTCAR | tail -n 1 | awk '{print $7}')
+#     ave=$(echo "scale=4; $ene / $natoms" | bc)
+#     vol=$(grep volume $i/OUTCAR | tail -n 1 | awk '{print $5}')
+#     echo -e $vol,$ave
+#   fi
+# done
