@@ -217,3 +217,32 @@ git reset --hard 版本号 # 版本号使用 git log 查看
 `git pull` 会直接将远程的更改合并到当前分支，
 而 `git fetch` 只会下载更新而不进行合并操作。
 你可以在 fetch 之后查看、比对差异，然后决定如何处理这些更新。
+
+## 使用 Git Tag 标记版本
+
+以 `main` 分支为例，要将当前 `main` 分支的状态发布为 `1.0.0` 版本，通常使用 Git Tag 来标记版本号。
+Tag 是 Git 中用于标识某个提交的特定点，可以用来表示版本。
+相较于分支，Tag 更适合用来标记软件发布版本。
+
+首先，检查当前的分支和状态，确保当前在 `main` 分支，并且所有的修改都已经提交。
+```
+git checkout main
+git status
+```
+
+使用 `git tag` 命令为当前 `main` 分支的状态创建 `1.0.0` 版本 Tag。
+```
+git tag -a v1.0.0 -m "Release version 1.0.0"
+```
+这会创建一个名为 `v1.0.0` 的 Tag，并附上版本说明 "Release version 1.0.0"。
+
+将刚才创建的 Tag 推送到远程仓库，以便在 GitHub 上查看。
+```
+git push origin v1.0.0
+```
+
+使用以下命令查看本地和远程的 Tag 列表，确认 Tag 已成功创建并推送。
+```
+git tag        # 查看本地 Tag 列表
+git ls-remote --tags origin  # 查看远程 Tag 列表
+```
