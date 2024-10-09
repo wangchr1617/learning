@@ -16,12 +16,9 @@ The repository is organized into the following main directories:
 
 We are fortunate to have a dedicated group of contributors working together on this repository. A big thanks to everyone involved!
 
-- @happygame123456
-- qcLin
-- @Hmaby1
-- XianyaoHuan
-- @jingjingHu401
-- jingjingHu401
+- @[qingchenLin](https://github.com/happygame123456)
+- @[XianyaoHuan](https://github.com/Hmaby1)
+- @[jingjingHu](https://github.com/jingjingHu401)
 
 ## 🛠️ Usage
 
@@ -59,8 +56,6 @@ We welcome contributions from all collaborators. To contribute:
 2. Create a new branch for your feature or bugfix.
 3. Make your changes and commit them with meaningful commit messages.
 4. Create a pull request to the `main` branch and request a review.
-
-Please adhere to the [code of conduct](./CODE_OF_CONDUCT.md) and ensure your code follows our [contribution guidelines](./CONTRIBUTING.md).
 
 ## 📄 License
 
