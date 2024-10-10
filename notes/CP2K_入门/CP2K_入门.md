@@ -185,7 +185,20 @@ CP2K 通常默认使用单 Gamma 点计算，需要使用足够大的晶胞以�
 并适当提高平面波基组的截断能量（`CUTOFF`）和相对截断能量（`REL_CUTOFF`）。
 
 切记，不能直接使用 VASP 中的小晶胞来进行 CP2K 的计算。
-需要使用多 k 点时，可以在 `KPOINTS` 中指定网格的 k 点采样。
+需要使用多 k 点时，可以在 `KPOINTS` 中指定网格的 k 点采样，如下所示：
+```
+&FORCE_EVAL
+  &DFT
+    &KPOINTS
+      SCHEME MONKHORST-PACK 3 3 3
+      SYMMETRY T
+      VERBOSE T
+      FULL_GRID T 
+    &END KPOINTS
+    ……
+  &END DFT
+&END FORCE_EVAL
+```
 
 CP2K 计算中需要指定赝势和基组文件（类似于 VASP 中的 `POTCAR`）。
 赝势文件通常选择位于 `GTH_POTENTIALS` 目录下的 `PBE` 或 `BLYP` 泛函文件，并根据元素的价电子数选择不同的 `-q` 后缀，如 `-q4` 表示该赝势包含 4 个价电子。
@@ -256,5 +269,236 @@ CP2K 提供了两种常用的 SCF（Self-Consistent Field）收敛算法：
 `OT/ALGORITHM` 可以从默认的 `STRICT` 改为 `IRAC`，SCF 收敛会更稳健。
 但实际上，即使是对于非金属体系，有时候 `DIAG` 算法也可能比 `OT` 算法速度更快。
 所以，在进行大规模的计算之前最好进行充分的测试。
+
+---
+
+## SCF 收敛相关
+
+当 CP2K 计算出现 SCF（Self-Consistent Field）难以收敛的情况时，首先应检查体系结构的合理性，以确保没有出现原子位置不佳或结构畸变的问题。
+以下是一些常用的收敛优化方法：
+
+1. 增大 SCF 迭代次数：
+如果 SCF 过程表现出一定的收敛趋势，但无法在当前迭代次数内收敛，可以通过增加 `SCF/MAX_SCF` 来允许更多的迭代次数继续计算，直至满足收敛标准。
+
+2. 初猜波函数优化：
+通常较小的基组（例如 `DZVP`）比大的基组（例如 `TZVP`）更容易收敛。
+可以先用较小基组进行一次计算，并将其收敛的波函数保存下来，作为大基组计算的初始猜测波函数（initial guess），这将有助于提高 SCF 的收敛性。
+
+3. 检查截断能设置：
+DFT 计算中，`DFT/MGRID` 中的 `CUTOFF` 和 `REL_CUTOFF` 参数用于控制格点的精度。
+若截断能量设置不够大，不仅会导致计算结果不准确，还会增加 SCF 的收敛难度。
+通常建议将 `CUTOFF` 设置为 `400-600 Ry`，并将 `REL_CUTOFF` 设置为 `40-60 Ry`，根据实际体系进行适当调整。
+
+4. 调整 SCF 混合策略（MIXING）：
+设置 `SCF/MIXING/METHOD` 为 `BROYDEN_MIXING` 来控制 SCF 过程中旧密度矩阵与新密度矩阵的混合比例，有利于加快 SCF 的收敛速度。
+
+- `ALPHA`：表示新密度矩阵混入旧密度矩阵的比例，默认为 0.4。当 SCF 难以收敛时，可尝试减小 `ALPHA` 值（如 0.1、0.2、0.3）以增加收敛稳定性。
+- `NBROYDEN`：控制 Broyden 方法中使用的历史矩阵数量。默认值为 4，通常过小，可将其增大到 8 或 12 以提升收敛效果。
+
+5. 电子温度控制：
+对于金属体系或半导体体系，可以在 `SCF/SMEAR` 中设置 `METHOD` 为 `FERMI_DIRAC`，并适当增大 `ELECTRONIC_TEMPERATURE`（如 `300-1000 K`），可以帮助电子填充更平滑，从而加快收敛。
+
+总结：SCF 收敛的难度通常与体系结构、基组选择、计算精度以及 SCF 迭代策略密切相关。可综合利用上述方法进行逐步优化，以达到更稳定的 SCF 收敛。
+
+---
+
+## MOTION
+
+`MOTION` 控制原子/离子运动（类似于 VASP 中的离子步）。
+无论是几何优化、晶胞优化、AIMD 还是过渡态搜索，都需要仔细地设置 `MOTION` 板块。
+
+### 几何优化
+
+使用 CP2K 进行几何优化时，需要设置 `GLOBAL/RUN_TYPE` 为 `GEO_OPT`。
+CP2K 中几何优化分为两种，一种是正常的能量极小化优化，一种是使用 dimer 算法进行过渡态优化，默认前者。
+能量极小化优化有三种算法，分别是 `CG`、`BFGS` 和 `LBFGS`。
+`CG` 算法是最稳定的算法，但计算速度相对较慢；`BFGS` 算法效率最高也最常用，
+计算中需要对 Hessian 矩阵进行对角化，如果初始结构不合理，`BFGS` 算法容易出问题；
+`LBFGS` 算法效率和 `BFGS` 类似，同时稳定性也很好，适合超大体系。
+对于一般的几何优化，推荐使用 `LBFGS` 算法。
+
+注意，使用 dimer 进行过渡态优化时，只能使用 `CG` 算法。
+
+几何优化（能量极小化）的 `MOTION` 如下所示：
+```
+&MOTION 
+  &GEO_OPT 
+    TYPE MINIMIZATION # 搜索过渡态时启用 TRANSITION_STATE ；
+    MAX_ITER 200
+    # MAX_DR 3.0E-3 # 最大位移；
+    # RMS_DR 1.5E-3 # 根均方位移；
+    MAX_FORCE 4.5E-4 # 最大受力，单位 a.u./bohr ，一般只调整这个即可；
+    # RMS_FORCE 3.0E-4 # 均方根受力；
+    # KEEP_SPACE_GROUP T
+    # EPS_SYMMETRY 1.0E-4
+    OPTIMIZER BFGS 
+  &END GEO_OPT
+  &CONSTRAINT 
+    &FIXED_ATOMS 
+ 	  LIST 1 2 3 4 
+ 	  LIST 12..43  
+ 	&END FIXED_ATOMS 
+  &END CONSTRAINT
+  &PRINT
+    &TRAJECTORY
+      FORMAT xyz # 默认输出是不带有晶胞参数信息的 .xyz 文件
+    &END TRAJECTORY
+  &END PRINT
+&END MOTION
+```
+如果在几何优化过程中需要固定部分原子，可以在 `MOTION/CONSTRAINT` 设置 `FIXED_ATOMS` 选项。
+在几何优化过程中，有可能中途偶尔出现几步 SCF 不收敛。
+此时 CP2K 程序还会继续算下去，只要最终几何优化收敛时 SCF 是收敛的状态就行了。
+几何优化每一步输出的结构都写在 `cp2k-pos-1.xyz` 中，使用命令 `grep = cp2k-pos-1.xyz` 查看每一步的能量，使用命令 `grep Max\.\ g cp2k.out` 查看每一步的受力。
+
+### 晶胞优化
+
+晶胞优化是在几何结构优化的基础上，同时优化晶胞参数。
+首先，`GLOBAL/RUN_TYPE` 设置为 `CELL_OPT`，然后在 `MOTION` 部分需要同时设置 `CELL_OPT` 和 `GEO_OPT` 的参数，
+如下所示：
+```
+&MOTION 
+  &CELL_OPT 
+    TYPE GEO_OPT # DIRECT_CELL_OPT 是类似于VASP中的结构优化，GEO_OPT 是晶胞优化和几何优化交替进行；
+    MAX_ITER 200 
+    # MAX_DR 3.0E-3
+    # RMS_DR 1.5E-3
+    MAX_FORCE 6.0E-4
+    # RMS_FORCE 3.0E-4
+    # CONSTRAINT Z # 固定 Z 轴；
+    # KEEP_ANGLES T # 是否固定晶格角度；
+    # KEEP_SPACE_GROUP T # 是否固定空间群；
+    # KEEP_SYMMETRY T # 是否固定对称性；
+    # EXTERNAL_PRESSURE 1.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 1.0 # 设置外压；
+    # PRESSURE_TOLERANCE 1.0E-2 # 晶胞优化中静水压的容忍限度；
+    OPTIMIZER CG
+    &CG 
+      &LINE_SEARCH 
+ 	    TYPE 2PNT  
+ 	  &END LINE_SEARCH
+    &END CG 
+  &END CELL_OPT 
+  &GEO_OPT 
+    ……
+  &END GEO_OPT 
+  &CONSTRAINT 
+    ……
+  &END CONSTRAINT
+  &PRINT
+    ……
+  &END PRINT
+&END MOTION
+```
+此外，在 `FORCE_EVAL/STRESS_TENSOR` 需要设置为 `ANALYTICAL`。
+使用命令 `grep CELL cp2k.out` 查看晶胞优化结果。
+
+### AIMD
+
+计算 AIMD 是 CP2K 的优势项目，特别是 CP2K 自带的 CSVR 热浴能更好地控温。
+```
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    TIMESTEP 2.0
+    STEPS 10000
+    TEMPERATURE 300
+    &THERMOSTAT
+      TYPE CSVR
+      &CSVR
+        TIMECON 200
+      &END CSVR
+    &END THERMOSTAT
+  &END MD
+  &CONSTRAINT 
+    ……
+  &END CONSTRAINT
+  &PRINT
+    &TRAJECTORY
+      &EACH
+        MD 1
+      &END EACH
+      FORMAT XYZ
+    &END TRAJECTORY
+    &CELL # 输出晶格参数信息，NPT 系综下非常有用；
+    &END CELL
+    &FORCES # 输出原子受力信息；
+    &END FORCES
+    &VELOCITIES
+      &EACH
+        MD   1
+      &END EACH
+    &END VELOCITIES
+    &RESTART_HISTORY # 保存可用于 CP2K 重启 AIMD 的文件；
+      &EACH
+        MD  1000
+      &END EACH
+    &END RESTART_HISTORY
+  &END PRINT
+&END MOTION
+```
+CP2K 计算 AIMD 时，可以在 `FORCE_EVAL/DFT/SCF/PRINT` 中关掉波函数输出（即设置 `RESTART OFF`），避免I/O浪费时间。
+
+在 VASP 和 LAMMPS 中可以设置初温与末温，而 CP2K 对于变温过程不是那么友好。
+CP2K 变温的方式有两种，一种是准静态变温，另一种是使用 `ANNEALING` 参数控制变温。
+准静态变温是将某一温度下平衡的结构输出，用于下一温度的模拟。
+`ANNEALING` 参数是通过设置温度标度因子，每步使用该因子重新进行温度标度。
+当 `ANNEALING > 1` 时为升温过程，反之为降温，其默认值为1。
+使用该命令时不能使用热浴，这意味着仅可选择 NVE 或 NPE 系综。
+一般操作是先在 NPT 或 NVT 系综下平衡结构，得到 `.restart` 文件后改为 NVE 系综通过 `ANNEALING` 参数变温，
+运行的步数与你设置的标度因子有关，最后再使用 `.restart` 文件在 NPT 或 NVT 系综下平衡。
+
+### NEB 过渡态搜索
+
+准备初、末态的结构文件，分别使用 CP2K 进行固定晶格的结构优化（即 `GEO_OPT`）。
+优化好的初态和末态分别命名为 `ini.xyz` 和 `fin.xyz`。
+`GLOBAL/RUN_TYPE` 设置为 `BAND`，`FORCE_EVAL` 和前述基本一致，其中 `SUBSYS/TOPOLOGY` 的结构文件用 `ini.xyz` 即可。
+然后在 `MOTION` 部分设置 `BAND` 参数，如下所示：
+```
+&MOTION
+  &BAND
+    K_SPRING 0.05 # 弹簧常数的值，默认 0.05 即可；
+    BAND_TYPE CI-NEB 
+    NUMBER_OF_REPLICA 5 # 初、末态间的插点数，一般不需要太多；
+    NPROC_REP 24 # 每个插点使用的核心数； 
+    ALIGN_FRAMES T # 是否控制插点排成直线；
+    ROTATE_FRAMES T # 是否控制插点旋转；
+    &CI_NEB
+	  NSTEPS_IT  5
+    &END CI_NEB
+    &OPTIMIZE_BAND
+	  OPTIMIZE_END_POINTS F # 不优化末态结构；
+      OPT_TYPE DIIS
+      &DIIS
+        MAX_STEPS 250
+	    MAX_STEPSIZE 2.0
+      &END DIIS
+    &END OPTIMIZE_BAND
+    &CONVERGENCE_CONTROL # 收敛判据
+      MAX_DR 0.002
+      MAX_FORCE 0.003
+      RMS_DR 0.005
+      RMS_FORCE 0.005 
+    &END CONVERGENCE_CONTROL
+	&PROGRAM_RUN_INFO
+	  INITIAL_CONFIGURATION_INFO F
+    &END PROGRAM_RUN_INFO
+	&CONVERGENCE_INFO
+    &END CONVERGENCE_INFO
+    &REPLICA # 结构文件，除了初态和末态之外，还可以自己提供中间态。
+      COORD_FILE_NAME ini.xyz     
+    &END REPLICA
+    &REPLICA
+      COORD_FILE_NAME fin.xyz    
+    &END REPLICA
+  &END BAND
+  &PRINT
+    &RESTART
+      BACKUP_COPIES 0 #Maximum number of backing up restart file, 0 means never
+    &END RESTART
+  &END PRINT
+&END MOTION
+```
+输出文件中，ener 文件输出 NEB 每步的能量和原子间距变化，
+`-pos-Replica*.xyz` 文件输出各点的原子坐标优化过程。
 
 ---
