@@ -10,15 +10,15 @@ The repository is organized into the following main directories:
 
 - `input_files/`: Contains various input files for simulations or analysis.
 - `scripts/`: Includes useful scripts for data processing, simulation setup, and other automation tasks.
-- `notes/`: Research learning notes and documentation on various topics.
+- `private_notes/`: Research learning notes and documentation on various topics.
 
 ## 🧑‍🤝‍🧑 Contributors
 
 We are fortunate to have a dedicated group of contributors working together on this repository. A big thanks to everyone involved!
 
-- @[qingchenLin](https://github.com/happygame123456)
+- @[QingchenLin](https://github.com/happygame123456)
 - @[XianyaoHuan](https://github.com/Hmaby1)
-- @[jingjingHu](https://github.com/jingjingHu401)
+- @[JingjingHu](https://github.com/jingjingHu401)
 
 ## 🛠️ Usage
 
