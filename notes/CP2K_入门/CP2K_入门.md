@@ -1,15 +1,15 @@
 # CP2K_入门
 
-CP2K 的输入文件一般命名为 `cp2k.inp`，其中关键词以 section 和 subsection 的形式，一环套一环，如下图所示。
+CP2K 的输入文件一般命名为 `cp2k.inp`，其中关键词以 `section` 和 `subsection` 的形式，一环套一环，如下图所示。
 
 <div align="left">
-<img src="./figures/fig_001.png" width = "25%" />
+<img src="./figures/fig_001.png" width = "100%" />
 </div>
 
-每一个 section 都是以 `&section` 开头，以 `&END section` 结尾，顺序随意，但是嵌套不能乱。
-在 section 中，每行只写一个关键词，关键词后面接参数，CP2K对大小写和空格不敏感。
+每一个 `section` 都是以 `&section` 开头，以 `&END section` 结尾，顺序随意，但是嵌套不能乱。
+在 `section` 中，每行只写一个关键词，关键词后面接参数，CP2K 对大小写和空格不敏感。
 
-常用的 section 包括 `GLOBAL`、`FORCE_EVAL`、`MOTION` 等，下面将逐个介绍它们。
+常用的 `section` 包括 `GLOBAL`、`FORCE_EVAL`、`MOTION` 等，下面将逐个介绍它们。
 
 ---
 
@@ -31,7 +31,7 @@ CP2K 的输入文件一般命名为 `cp2k.inp`，其中关键词以 section 和 
 2. `ENERGY`，单点能计算；
 3. `ENERGY_FORCE`，计算能量和原子受力；
 4. `GEO_OPT`，几何优化；
-5. `CELL_OPT`，晶胞优化，常与GEO_OPT联用；
+5. `CELL_OPT`，晶胞优化，常与 `GEO_OPT` 联用；
 6. `BAND`，NEB计算；
 
 `PRINT_LEVEL` 控制输出详略，一般设置成 `LOW` 或 `MEDIUM` 即可。
@@ -42,8 +42,8 @@ CP2K 中计算能量需要设置 `GLOBAL/RUN_TYPE` 为 `ENERGY`；
 如果要将受力信息存储到文件中，则需要设定 `FROCE_EVAL/PRINT/FORCES/FILENAME` 文件名；
 否则受力信息将会打印到 `*.out` 文件中。
 
-注意，在 CP2K 中，默认的能量和距离单位分别是 Hartree (Hartree 原子单位) 和 Bohr (波尔半径)。
-如果需要将它们转换成常用的 eV（电子伏特）和 Å（埃）单位，可以使用以下换算关系：
+注意，在 CP2K 中，默认的能量和距离单位分别是 `Hartree` (Hartree 原子单位) 和 `Bohr` (波尔半径)。
+如果需要将它们转换成常用的 `eV`（电子伏特）和 `Å`（埃）单位，可以使用以下换算关系：
 ```
 1 Hartree = 27.2114 eV
 1 Bohr = 0.529177 Å
@@ -53,3 +53,152 @@ CP2K 中计算能量需要设置 `GLOBAL/RUN_TYPE` 为 `ENERGY`；
 1 eV = 0.0367493 Hartree
 1 Å = 1.88973 Bohr
 ```
+
+---
+
+## FORCE_EVAL
+
+`FORCE_EVAL` 控制能量和原子受力（类似于 VASP 中的电子步），是 CP2K 中最重要的 `section`。
+以 `SiSb` 的计算为例，一个典型的 `FORCE_EVAL`（使用 `DIAG` 算法）如下所示：
+```
+&FORCE_EVAL
+  METHOD QUICKSTEP # FIST 是经典 MD，QUICKSTEP 是 AIMD；
+  # STRESS_TENSOR ANALYTICAL # 对于晶胞体积/形状变化的计算需要打开这个参数；  
+  &SUBSYS
+    &CELL
+	  # 下面两种指定晶胞参数的方法是等价的；
+      A 18.62159700 0.000000000 0.000000000
+      B 0.000000000 18.62159700 0.000000000
+      C 0.000000000 0.000000000 18.62159700
+      # ABC 18.62159700 18.62159700 18.62159700
+      # ALPHA_BETA_GAMMA 90 90 90
+
+      PERIODIC XYZ # 默认 XYZ，可选 X、Y、Z、XY、YZ、XZ、XYZ 和 NONE；
+    &END CELL
+    # &COORD # 指定原子坐标，更推荐使用下面的 TOPOLOGY 方法；
+      # Si 0.000000000 0.000000000 0.000000000
+      # Si 0.000000000 2.715348700 2.715348700
+      # …
+      # Sb 1.357674400 4.073023100 4.073023100
+      # Sb 4.073023100 4.073023100 1.357674400
+    # &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES
+  	  &END CENTER_COORDINATES
+ 	  COORD_FILE_NAME sisb.cif
+  	  COORD_FILE_FORMAT CIF # 除了 cif，还可以读入 pdb、xtl，xyz 等格式；
+    &END TOPOLOGY
+    &KIND Sb
+      ELEMENT Sb
+      BASIS_SET TZVP-MOLOPT-SR-GTH-q5
+      POTENTIAL GTH-PBE
+    &END KIND
+    &KIND Si
+      ELEMENT Si
+      BASIS_SET TZVP-MOLOPT-GTH-q4
+      POTENTIAL GTH-PBE
+    &END KIND
+  &END SUBSYS
+  &DFT
+	@SET DATAPATH /home/changruiwang-ICME/Software/cp2k-2023.1/data
+    BASIS_SET_FILE_NAME ${DATAPATH}/BASIS_MOLOPT # 基组文件 1；
+    BASIS_SET_FILE_NAME ${DATAPATH}/BASIS_MOLOPT_UCL # 基组文件 2，相比 BASIS_MOLOPT，BASIS_MOLOPT_UCL 可选的元素种类更多；
+    POTENTIAL_FILE_NAME ${DATAPATH}/POTENTIAL # 赝势文件；
+    # WFN_RESTART_FILE_NAME cp2k-RESTART.wfn # 读取波函数；
+    # CHARGE 0 # 体系整体电荷；
+    # MULTIPLICITY 1 # 体系的整体自旋多重度；
+    &QS
+      EPS_DEFAULT 1.0E-14
+      EXTRAPOLATION ASPC
+      EXTRAPOLATION_ORDER 3
+    &END QS
+    &POISSON
+      PERIODIC XYZ
+ 	  PSOLVER PERIODIC
+    &END POISSON
+    &XC
+      &XC_FUNCTIONAL PBE # 控制泛函；
+      &END XC_FUNCTIONAL
+      &VDW_POTENTIAL # 控制色散校正；
+        POTENTIAL_TYPE PAIR_POTENTIAL # 除了 PAIR_POTENTIAL 还有 NON_LOCAL（例如 RVV10）；
+   	    &PAIR_POTENTIAL
+   		  TYPE DFTD3(BJ)
+          PARAMETER_FILE_NAME ${DATAPATH}/dftd3.dat
+      	  REFERENCE_FUNCTIONAL PBE
+		  R_CUTOFF 15 # 截断半径；
+      	  # CALCULATE_C9_TERM T # C9 项，同时增加计算精度和计算量；
+		  &PRINT_DFTD
+	        FILENAME cp2k-dftd3.out
+		  &END PRINT_DFTD
+ 	    &END PAIR_POTENTIAL
+      &END VDW_POTENTIAL
+    &END XC
+    &MGRID
+      NGRIDS 5 # 对 MOLOPT-GTH 基组，5 是最优设置；
+      CUTOFF 400 # 取决于元素种类；
+      REL_CUTOFF 60 # 默认 40，一般取 50 或 60；
+      # USE_FINER_GRID T # 用于提高网格精细度；
+    &END MGRID
+    &SCF
+      MAX_SCF 300 # SCF 迭代上限，类似于 VASP 中的 NELM；
+      EPS_SCF 1.0E-6 # SCF 能量收敛标准，默认是 1E-5，单位是 hartree；
+      SCF_GUESS RESTART
+      &DIAGONALIZATION
+        ALGORITHM STANDARD
+        EPS_ADAPT 0.01
+      &END DIAGONALIZATION
+      &MIXING
+        METHOD BROYDEN_MIXING
+        ALPHA 0.4
+        BETA 1.5
+        NBROYDEN 8
+      &END MIXING
+      &SMEAR
+        METHOD FERMI_DIRAC
+  	    ELECTRONIC_TEMPERATURE 300
+      &END SMEAR
+      ADDED_MOS 500 # 求解一些额外的空轨道从而能被热激发的电子所占据；
+      &PRINT
+        &RESTART
+          FILENAME cp2k-RESTART.wfn
+   		  BACKUP_COPIES 0 
+  	    &END RESTART
+      &END PRINT
+    &END SCF
+    &PRINT
+      &E_DENSITY_CUBE
+        FILENAME cube
+     	STRIDE 1 1 1 #Stride of exported cube file
+   	  &END E_DENSITY_CUBE
+    &END PRINT
+  &END DFT
+  &PRINT 
+    &FORCES ON
+      FILENAME cp2k-FORCE.dat
+    &END FORCES 
+  &END PRINT
+&END FORCE_EVAL
+```
+CP2K 通常默认使用单 Gamma 点计算，需要使用足够大的晶胞以减少周期性误差。
+如果晶胞太小，部分基组函数可能超出晶胞边界，导致重叠矩阵求逆过程出现数值问题，从而使得结果不可靠。
+可以考虑增大晶胞尺寸或在输入文件中调整边界条件（如 `POISSON` 模块中的 `PERIODIC NONE`），
+并适当提高平面波基组的截断能量（`CUTOFF`）和相对截断能量（`REL_CUTOFF`）。
+
+切记，不能直接使用 VASP 中的小晶胞来进行 CP2K 的计算。
+需要使用多 k 点时，可以在 `KPOINTS` 中指定网格的 k 点采样。
+
+CP2K 计算中需要指定赝势和基组文件（类似于 VASP 中的 `POTCAR`）。
+赝势文件通常选择位于 `GTH_POTENTIALS` 目录下的 `PBE` 或 `BLYP` 泛函文件，并根据元素的价电子数选择不同的 `-q` 后缀，如 `-q4` 表示该赝势包含 4 个价电子。
+基组文件常用 `BASIS_MOLOPT`，它经过专门的优化，适用于大部分元素体系；
+而 `BASIS_MOLOPT_UCL` 是伦敦大学学院提供的扩展基组，适用于更多类型的元素。
+
+在基组文件中，`SZV`（Single Zeta Valence）、`DZVP`（Double Zeta Valence with Polarization）、`TZVP`（Triple Zeta Valence with Polarization）分别代表基组的劈裂（多少层电子壳层）和极化函数的添加情况。
+其中，`VP`（Valence Polarized）表示基组中包含极化函数。通常，劈裂层数和极化函数越多，计算结果越精确，但计算量也会显著增加。
+计算量的顺序一般为：`SZV < DZVP < TZVP < TZV2P < TZV2PX`。
+
+选择基组时应注意与赝势中的价电子数保持一致。
+基组的大小对基组重叠误差（Basis Set Superposition Error, BSSE）有显著影响。
+较大的基组（如 `TZVP` 或 `TZV2P`）通常可以有效降低 BSSE 误差，因此对于大体系或精度要求较高的计算，推荐使用 `DZVP` 或 `TZVP`。
+在计算过程中，可以使用 COUNTERPOISE 方法来校正 BSSE 误差，确保结果的精度。
+
+---

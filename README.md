@@ -9,8 +9,8 @@ It serves as a resource hub for our team to share, collaborate, and improve our 
 The repository is organized into the following main directories:
 
 - `input_files/`: Contains various input files for simulations or analysis.
+- `notes/`: Research learning notes and documentation on various topics.
 - `scripts/`: Includes useful scripts for data processing, simulation setup, and other automation tasks.
-- `private_notes/`: Research learning notes and documentation on various topics.
 
 ## 🧑‍🤝‍🧑 Contributors
 
