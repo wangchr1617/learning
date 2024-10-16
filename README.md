@@ -8,16 +8,15 @@ It serves as a resource hub for our team to share, collaborate, and improve our 
 
 The repository is organized into the following main directories:
 
-- `input_files/`: Contains various input files for simulations or analysis.
+- `input_files/`: Contains various input files for simulations.
 - `notes/`: Research learning notes and documentation on various topics.
 - `scripts/`: Includes useful scripts for data processing, simulation setup, and other automation tasks.
+- `machine_learning/`: Save replicated machine learning models.
 
 ## 🧑‍🤝‍🧑 Contributors
 
 We are fortunate to have a dedicated group of contributors working together on this repository. A big thanks to everyone involved!
 
-- @[QingchenLin](https://github.com/happygame123456)
-- @[XianyaoHuan](https://github.com/Hmaby1)
 - @[JingjingHu](https://github.com/jingjingHu401)
 
 ## 🛠️ Usage
