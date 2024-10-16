@@ -1,5 +1,5 @@
 **/.ipynb_checkpoints/
 *.xyz
 *.traj
-./machine_learning/painn/trained_models
-./machine_learning/painn/data
+./machine_learning/painn/trained_models/
+./machine_learning/painn/data/
