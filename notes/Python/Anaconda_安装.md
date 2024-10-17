@@ -1,7 +1,11 @@
 # Anaconda_安装
 
 ## Windows 系统安装 Anaconda
+
+1. 下载安装包
 科学上网打开浏览器，访问 [Anaconda 官网](https://www.anaconda.com/download/) 下载适用于 Windows 的 Anaconda 安装程序（64-bit Installer）。
+
+2. 安装 Anaconda
 以管理员身份运行 .exe 文件，如下所示：
 <div align="left">
 <img src="./figures/001.png" width = "50%" />
@@ -36,7 +40,7 @@
 </div>
 点击 “Finish” 退出安装程序。
 
-下一步是修改系统环境变量。
+3. 修改系统环境变量
 <div align="left">
 <img src="./figures/009.png" width = "50%" />
 </div>

@@ -3,7 +3,7 @@
 CP2K 的输入文件一般命名为 `cp2k.inp`，其中关键词以 `section` 和 `subsection` 的形式，一环套一环，如下图所示。
 
 <div align="left">
-<img src="./figures/fig_001.png" width = "50%" />
+<img src="./figures/001.png" width = "50%" />
 </div>
 
 每一个 `section` 都是以 `&section` 开头，以 `&END section` 结尾，顺序随意，但是嵌套不能乱。

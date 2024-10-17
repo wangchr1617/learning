@@ -1,12 +1,13 @@
 # Git 入门教程
+
 ## Git 的安装
 Git 是 Linus Torvalds 为了帮助管理 Linux 内核开发而开发的一个开放源码的分布式版本控制系统。
-访问 https://git-scm.com/ 获得Git在 Windows / macOS / Linux 三个操作系统相关的安装包。
-以 Windows 版为例，下载客户端以管理员身份运行后，保持默认的选项，一直选择下一步安装即可。
-如果以上一切正常，打开终端(Window下请打开安装git时一并安装的bash) 输入 `git --version` 应该会显示如下类似的信息
-```
-git version 2.5.0
-```
+访问 [Git 官网](https://git-scm.com/) 下载 Git 安装包。
+
+以 Windows 系统为例，以管理员身份运行 .exe 客户端进入安装界面。
+除了修改安装路径，其余的选项保持默认即可。
+
+安装完成后，打开 git bash 输入 `git --version` 验证是否安装成功。
 
 想了解 Git 的各式工具该怎么用，可以阅读它们的使用帮助，方法有三：
 ```
@@ -20,7 +21,7 @@ git help config
 ```
 
 ## 注册账号
-通过访问[ Github 首页](https://github.com/)或者[ Gitee 首页](https://gitee.com/)注册个人账号。
+通过访问 [Github 首页](https://github.com/) 或者 [Gitee 首页](https://gitee.com/) 注册个人账号。
 
 ## 配置 ssh 公钥
 目前 Github 和 Gitee 支持使用 HTTPS 协议和 ssh 协议进行代码的推送/拉取。
@@ -149,7 +150,7 @@ git clone XXX dev
 ```
 git add . # 提交当前仓库的所有改动到 Git 暂存区
 git status -s # 查看仓库当前文件提交状态（A：提交成功；AM：文件在添加到缓存之后又有改动）
-git commit -m "1.0.0" # 从 Git 的暂存区提交版本到仓库，参数 -m 后为当次提交的备注信息
+git commit -s -m "1.0.0" # 从 Git 的暂存区提交版本到仓库，参数 -m 后为当次提交的备注信息
 git push origin master # 将本地的 Git 仓库信息推送上传到服务器，参数 origin 后面是提交到的具体分支
 git log # 查看 Git 提交的日志
 ```
@@ -172,7 +173,7 @@ git pull origin master # origin 是仓库名；master 是分支名
 修改/添加文件，否则与原文件相比就没有变动。
 ```
 git add .
-git commit -m "第一次提交"
+git commit -s -m "第一次提交"
 git push origin master
 ```
 在新建仓库时，如果在 Gitee 平台仓库上已经存在 readme 或其他文件，在提交时可能会存在冲突，这时用户需要选择的是保留线上的文件或者舍弃线上的文件，如果您舍弃线上的文件，则在推送时选择强制推送。
