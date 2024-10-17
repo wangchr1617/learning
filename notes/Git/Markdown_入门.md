@@ -53,6 +53,12 @@ __加粗__
 ```markdown
 ![Markdown Logo](https://markdown-here.com/img/icon256.png)
 ```
+或者使用 html 语言的格式：
+```
+<div align="left">
+<img src="./figures/fig_001.png" width = "50%" />
+</div>
+```
 
 ### 插入表格
 
