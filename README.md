@@ -17,7 +17,17 @@
 
 衷心感谢所有参与仓库建设的贡献者！
 
+- @[ErpengWang](https://github.com/wangzhenyu-bh)
+- @[YaGao](https://github.com/yygao7)
+- @[Tongzhao](https://github.com/hathaway77)
+- @[XuanguangZhang](https://github.com/DONCHANG7)
+- @[YidongLi](https://github.com/eeeeedong123)
 - @[JingjingHu](https://github.com/jingjingHu401)
+- @[BoLiu](https://github.com/bone9687)
+- @[QingchenLin](https://github.com/happygame123456)
+- @[XianyaoHuan](https://github.com/Hmaby1)
+- @[Baoquan](https://github.com/simple-pleasures)
+- @[AoXu](https://github.com/XA-123456)
 
 ## 🛠️ Usage
 
