@@ -43,7 +43,7 @@ git clone https://github.com/wangchr1617/learning.git
 
 1. 首先需要 Fork 此仓库。
 2. 为你的修改创建一个新分支。
-3. 在本地编辑 markdown 文件放到 `drafts` 目录下。
+3. 在本地编辑 .md 文件或者 .ipynb 文件放到 `drafts` 目录下。
 4. 向 main 分支发起 Pull Request 将 commits 合并。
 
 有推送权限的同学可以直接 `git push` 修改仓库（不推荐）。
@@ -53,5 +53,7 @@ git clone https://github.com/wangchr1617/learning.git
 此仓库采用 MIT 许可证授权。详情请参见 [LICENSE](./LICENSE)。
 
 ## 💬 Contact
+
+Markdown 和 Git 相关问题请首先参阅 [Markdown 入门](./notes/Git/Markdown_入门.md) 和 [Git 入门](./notes/Git/Git_入门.md)。
 
 如果有任何问题或建议，请随时提交 Issue 或联系仓库所有者。
