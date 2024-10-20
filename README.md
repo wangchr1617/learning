@@ -10,8 +10,7 @@
 - `input_files/`: 包含各种模拟所需的输入文件。
 - `notes/`: 研究学习笔记和各类主题的相关文档。
 - `scripts/`: 用于数据处理其他自动化任务的实用脚本。
-- `machine_learning/`: 复现的机器学习模型。
-- `drafts/`: 用于存储待合并的 markdown 文件。
+- `drafts/`: 用于存储待合并的 .md 文件或者 .ipynb 文件。
 
 ## 🧑‍🤝‍🧑 Contributors
 
