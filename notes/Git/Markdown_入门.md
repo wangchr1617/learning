@@ -181,3 +181,11 @@ $$
 | \chi       | $\chi$     | \Psi       | $\Psi$    |
 | \psi       | $\psi$     | \Omega     | $\Omega$  |
 | \omega     | $\omega$   | \tau       | $\tau$    |
+
+### Markdown 文件转 PDF 文件
+
+参考 [网址](https://github.com/wangchr1617/pandoc-latex-template) ，以 `example.md` 为例：
+
+```
+pandoc example.md -o example.pdf --from markdown --template eisvogel --pdf-engine=xelatex -N -V CJKmainfont="SimSun"
+```

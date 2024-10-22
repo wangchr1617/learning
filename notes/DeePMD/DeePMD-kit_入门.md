@@ -3,7 +3,9 @@
 
 ## 一、数据准备
 
-如果你只有VASP数据，可以使用`vasp_to_xyz.py`将其转化成`.xyz`格式。有了一个`.xyz`格式的NEP训练集之后，可以使用`xyz2dp.py`将其转化成`.npy`格式的DP训练集；反之，使用`dp2xyz.py`可以将DP训练集转化成NEP训练集。
+有了 VASP 静态计算数据后，可以使用 `python vasp_to_xyz.py` 将其转化成 `.xyz` 格式。
+`.xyz` 格式可以用于 NEP 训练。使用 `python xyz2dp.py` 将 `.xyz` 格式转化成 `.npy` 格式的 DP 训练集；
+反之，使用 `python dp2xyz.py` 可以将 DP 训练集转化成 NEP 训练集。
 
 ### DP训练集的目录结构
 
@@ -149,3 +151,4 @@ mpirun -machinefile $PBS_NODEFILE -np $NP $EXEC train input.json > output
 训练结束时，需要使用命令`dp freeze -o graph.pb`冻结模型参数为一个`.pb`文件，其中`-o`指定模型文件名。压缩模型能将DPMD的模拟速度再提高一个数量级，并且消耗更少的内存。可以使用命令`dp compress -i graph.pb -o graph-compress.pb`压缩`graph.pb`。
 
 如果准备了验证集，可以使用命令`dp test -m graph-compress.pb -s ./valid/Ge64Ge64/ -n 40 -d results`检查训练模型的质量，它将在当前目录中输出名为`results.e.out`和`results.f.out`的文件。
+

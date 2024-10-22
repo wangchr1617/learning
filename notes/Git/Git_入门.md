@@ -2,7 +2,7 @@
 
 ## Git 的安装
 Git 是 Linus Torvalds 为了帮助管理 Linux 内核开发而开发的一个开放源码的分布式版本控制系统。
-访问 [Git 官网](https://git-scm.com/) 下载 Git 安装包。
+访问 [Git 官网](https://git-scm.com/) 或者 [Git Windows客户端](https://github.com/git-for-windows/git/releases/download/v2.45.0.windows.1/Git-2.45.0-64-bit.exe) 下载 Git 安装包。
 
 以 Windows 系统为例，以管理员身份运行 .exe 客户端进入安装界面。
 除了修改安装路径，其余的选项保持默认即可。

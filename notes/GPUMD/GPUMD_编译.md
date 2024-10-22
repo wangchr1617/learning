@@ -37,13 +37,12 @@ cat $PBS_NODEFILE > /tmp/nodefile.$$
 
 cd $PBS_O_WORKDIR
 ulimit -s unlimited
-export CUDA_VISIBLE_DEVICES=0 # 指定 CUDA 程序可以访问的 GPU 设备
+export CUDA_VISIBLE_DEVICES=0,1 # 指定 CUDA 程序可以访问的 GPU 设备
 
 EXEC_gpumd=/home/changruiwang-ICME/Software/GPUMD-3.9.1/src/gpumd
 EXEC_nep=/home/changruiwang-ICME/Software/GPUMD-3.9.1/src/nep
 
-# 运行 GPUMD，训练时换成 $EXEC_nep 即可
-$EXEC_gpumd > output
+$EXEC_gpumd > output # 运行 GPUMD，训练时换成 $EXEC_nep 即可
 ```
 
 ---
