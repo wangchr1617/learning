@@ -111,20 +111,3 @@ export PATH=$PATH:~/Softwares/cp2k-2023.1/exe/local
 mpirun -n 24 cp2k.popt cp2k.inp 1>cp2k.out 2>cp2k.err
 ```
 除了使用 PBS 脚本，运行 `cp2k.ssmp -v` 可以查看CP2K的版本、编译时用的库和参数信息；如果要实时查看输出使用命令 `mpirun -np 4 cp2k.popt test.inp | tee test.out` 即可。
-
-## CP2K相关的使用工具
-
-### Multiwfn
-访问 Multiwfn 官网下载安装包 `Multiwfn_3.8_dev_bin_Linux_noGUI.zip` 并使用 `unzip` 命令解压。在 `~/.bashrc` 加入以下命令：
-```sh
-ulimit -s unlimited
-export OMP_STACKSIZE=200M
-export Multiwfnpath=/home/cxyu-ICME/Software/Multiwfn_3.8_dev_bin_Linux_noGUI
-export PATH=/home/cxyu-ICME/Software/Multiwfn_3.8_dev_bin_Linux_noGUI:${PATH}
-```
-最后，在 `Multiwfn_3.8_dev_bin_Linux_noGUI` 中增加可执行权限 `chmod u+x Multiwfn_noGUI` 即可。
-我们可以使用 Multiwfn 便捷地产生 CP2K 输入文件。首先 `./Multiwfn_noGUI`，并载入一个 Multiwfn 可以识别的至少含有结构信息的文件（例如 .cif 结构文件）；
-然后在 Multiwfn 主菜单里输入 `cp2k`，并选择输入产生 CP2K 输入文件的路径；通过各种选项设置如何进行 CP2K 相关计算；选择 0，得到 CP2K 输入文件 `cp2k.inp`。
-
-### vim plugin file
-安装 vim plugin file 工具可以帮助我们检查 CP2K 输入文件的语法错误，详情查看 [官网教程](https://www.cp2k.org/tools:vim) 。
