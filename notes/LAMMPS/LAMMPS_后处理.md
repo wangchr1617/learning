@@ -1,10 +1,7 @@
 
-# lammps 随笔
+# LAMMPS 后处理
 
----
-
-### 后处理技巧
-
+## 提取热力学量
 
 LAMMPS 的 in 文件中，使用 `thermo_modify line yaml` 将自定义的热力学量输出为 YAML 格式，
 以方便 python 从日志文件 `log.lammps` 中提取和解析这些数据：

@@ -54,6 +54,8 @@ CP2K 中计算能量需要设置 `GLOBAL/RUN_TYPE` 为 `ENERGY`；
 1 Å = 1.88973 Bohr
 ```
 
+CP2K 如果每步SCF警告 `*** WARNING in fm/cp_fm_elpa.F:522 :: Setting real_kernel for ELPA failed ***` 的问题，说明 CP2K 没有编译 ELPA 数学库，在 `&GLOBAL` 中设置 `PREFERRED_DIAG_LIBRARY SL` 即可。
+
 ---
 
 ## FORCE_EVAL
@@ -136,7 +138,7 @@ CP2K 中计算能量需要设置 `GLOBAL/RUN_TYPE` 为 `ENERGY`；
     &MGRID
       NGRIDS 5 # 对 MOLOPT-GTH 基组，5 是最优设置；
       CUTOFF 400 # 取决于元素种类；
-      REL_CUTOFF 60 # 默认 40，一般取 50 或 60；
+      REL_CUTOFF 40 # 默认 40，一般 CUTOFF:REL_CUTOFF 取 400:40、500:50 或 600加:60，不要超过 60；
       # USE_FINER_GRID T # 用于提高网格精细度；
     &END MGRID
     &SCF
@@ -503,82 +505,28 @@ CP2K 变温的方式有两种，一种是准静态变温，另一种是使用 `A
 
 ---
 
-## 使用 Multiwfn 便捷地创建 CP2K 输入文件
+## CP2K 输出结果分析
 
-### Multiwfn 的安装
+使用 Diag 算法时，`grep "SCF run converged" cp2k.out` 查看是否收敛；`grep "/Diag." cp2k.out` 查看自洽过程收敛趋势。
 
-访问 [Multiwfn 官网](http://sobereva.com/multiwfn) 下载 noGUI 版本的 `.zip` 安装包并使用 `unzip` 命令解压。
-在 `~/.bashrc` 加入以下命令：
-```sh
-ulimit -s unlimited
-export OMP_STACKSIZE=200M
-export Multiwfnpath=/home/cxyu-ICME/Software/Multiwfn_3.8_dev_bin_Linux_noGUI
-export PATH=/home/cxyu-ICME/Software/Multiwfn_3.8_dev_bin_Linux_noGUI:${PATH}
-```
-最后，在 `Multiwfn_3.8_dev_bin_Linux_noGUI` 中增加可执行权限 `chmod u+x Multiwfn_noGUI` 即可。
+使用 OT 算法时，`grep "outer SCF loop converged" cp2k.out` 查看是否收敛；`grep "OT DIIS" cp2k.out` 查看自洽过程收敛趋势。
 
-我们可以使用 Multiwfn 便捷地产生 CP2K 输入文件。
+另外，无论是 Diag 还是 OT，`grep "Total energy" cp2k.out | tail -1` 查看总能；
+`grep -A12 "ATOMIC FORCES" cp2k.out # -A 后面等于晶胞原子数加 4` 查看原子受力。
 
-1. 首先 `./Multiwfn_noGUI`，并载入一个 Multiwfn 可以识别的至少含有结构信息的文件（例如 `.cif`、`.xyz` 等结构文件，最好不要直接使用 POSCAR 格式）；
-2. 然后在 Multiwfn 主菜单里输入 `cp2k`，并选择输入产生 CP2K 输入文件的路径；
-3. 通过各种选项设置如何进行 CP2K 相关计算；
-4. 选择 0，得到 CP2K 输入文件 `cp2k.inp`。
+使用 `time.sh` 提取计算任务用时：
+```shell
+start_time=$(grep "PROGRAM STARTED AT" cp2k.out | sed -E 's/.*AT +([0-9-]+ [0-9:.]+).*/\1/')
+end_time=$(grep "PROGRAM ENDED AT" cp2k.out | sed -E 's/.*AT +([0-9-]+ [0-9:.]+).*/\1/')
 
-注意，尽管 Multiwfn 创建 CP2K 输入文件非常方便，也绝对不能把 CP2K 当黑箱用！！！
+if [[ -z "$start_time" || -z "$end_time" ]]; then
+  echo "无法提取到时间，请检查cp2k.out文件格式"
+  exit 1
+fi
 
-### Multiwfn 创建单点计算
+start_sec=$(date -d "$start_time" +%s.%N)
+end_sec=$(date -d "$end_time" +%s.%N)
 
-以 GeTe（共包含 8 个原子）为例，用 Multiwfn_noGUI 对 GeTe.cif 产生一个最简单的输入文件，即使用 PBE 泛函结合 DZVP-MOLOPT-SR-GTH 基组做静态计算。
-
-```
-> Multiwfn_noGUI GeTe.cif # 使用 Multiwfn 加载结构文件。
-> cp2k # 等价于依次键入 100 2 25，启用生成 CP2K 输入文件的功能。
-> cp2k.inp # 将输入文件重命名为 cp2k.inp。
-```
-
-程序返回如图所示的界面：
-
-<div align="left">
-<img src="./figures/002.png" width = "50%" />
-</div>
-
-下面逐步介绍需要修改的设置：
-`-7`：设置周期性边界条件，默认 `XYZ`；
-`-4`：控制是否计算原子电荷，默认是 `None`；
-`-3`：控制是否输出 `.cube` 电荷密度文件，默认是 `None`；
-`-2`：控制是否输出记录原子、基函数、轨道等信息的 `.molden` 波函数文件，默认是 `No`；
-`-1`：选择任务类型，默认是 `1 Energy`，这里**改为 `2 Energy + force`**，即将 `GLOBAL/RUN_TYPE` 设置为 `ENERGY_FORCE`，同时计算体系能量和原子受力。
-`1`：选择泛函，默认 PBE 泛函；
-`2`：选择基组和赝势，默认 DZVP-MOLOPT-SR-GTH；
-`3`：选择色散校正类型，默认是 `None`；
-`4`：选择自洽迭代算法，只能选择 Diag 或 OT 算法，这里选用 Diag 算法；
-`5`：选择密度矩阵混合算法，默认是 Broyden mixing，保持默认即可；
-`6`：控制是否使用展宽，默认是 `No`，**建议开启**；
-`7`：控制是否使用溶剂化模型，默认是 `No`;
-`8`：设置 K 点，默认是仅使用 Gamma 点，这里参考 VASPKIT 中的 Accuracy Levels 0.03 对应的 K 点密度设置为 `6 6 6`；
-`13`：是否使用更严格的收敛标准，默认是 `No`，建议开启，即设置 `EPS_DEFAULT 1.0E-14` 和 `EPS_SCF 1.0E-07`；
-`15`：是否通过 TDDFT 计算激发态，默认是 `No`；
-
-最后键入 `-9` 进入其他设置：
-`1`：修改体系净电荷，默认是 `0`；
-`2`：修改体系自旋多重度，默认是 `1`；
-`3`：设置孤立体系的重复单元数，默认是 `1 1 1`；
-`4`：控制是否使用更精细的网格，默认是 `No`，**建议开启**；
-`5`：设置 CUTOFF 和 REL_CUTOFF，这两个参数极大地影响计算效率和计算精度，需要经过严格的测试，本例中保持默认；
-`6`：控制是否打印电偶极矩和磁矩，默认是 `No`；
-`8`：控制是否使用 DFT+U 方法，默认是 `No`，本例不使用；
-`9`：设置原子磁矩初猜，对于有磁性的体系非常关键；
-`10`：控制输出详细程度，默认是 `Low`；
-`11`：设置外电场矢量；
-`12`：设置展宽方法中的虚拟轨道数量，对应上一阶段设置的选项 `6`，一般可以略微设置大一些；
-`13`：是否将晶胞置于盒子中间，默认是 `No`；
-`14`：是否打印轨道能量和占据，默认是 `No`，**按需开启**；
-`18`：是否打印 EPR hyperfine coupling tensor，默认是 `No`，不太了解；
-`19`：控制是否使用 constrained DFT (CDFT)，不太了解；
-`20`：控制是否使用 LRIGPW 加速计算，这是 CP2K 的特色功能之一，但是本例不需要，默认是 `No`；
-`21`：控制是否使用 LSSCF 方法加速计算，同上；
-`22`：设置泊松求解器类型，默认是 PERIODIC（适用于三维体系）；
-`23`：控制是否使用表面偶极校正，默认是 `None`，可以选择应用于 X、Y、Z 三个方向；
-`30`：控制是否通过结构文件读取原子坐标，默认是 `No`，**建议开启**；
-
-键入 `0` 回到基本设置界面，再键入 `0` 生成输入文件 cp2k.inp。
+elapsed=$(echo "$end_sec - $start_sec" | bc)
+printf "任务用时: %.3f 秒\n" "$elapsed"
+``` 

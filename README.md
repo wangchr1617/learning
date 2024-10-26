@@ -25,23 +25,8 @@
 
 衷心感谢所有参与仓库建设的贡献者！
 
-- @[ErpengWang](https://github.com/wangzhenyu-bh)
-- @[YaGao](https://github.com/yygao7)
-- @[YuqiSun](https://github.com/xsdlxm)
-- @[DiZhang](https://github.com/dzhang111)
-- @[Tongzhao](https://github.com/hathaway77)
-- @[XuanguangZhang](https://github.com/DONCHANG7)
 - @[ZefengLi](https://github.com/Jeffery-Li0513)
-- @[HanyuLiu](https://github.com/lhycms)
-- @[NingYang](https://github.com/nyang-up)
-- @[YidongLi](https://github.com/eeeeedong123)
 - @[ChangruiWang](https://github.com/wangchr1617)
-- @[JingjingHu](https://github.com/jingjingHu401)
-- @[AoXu](https://github.com/XA-123456)
-- @[BaoquanHu](https://github.com/simple-pleasures)
-- @[BoLiu](https://github.com/bone9687)
-- @[QingchenLin](https://github.com/happygame123456)
-- @[XianyaoHuan](https://github.com/Hmaby1)
 
 ## 🛠️ Usage
 
