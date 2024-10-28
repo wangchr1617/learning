@@ -32,7 +32,7 @@ SwitchyOmega 插件可以在 Chrome 应用商店在线安装。
 SwitchyOmega 情景模式一共有四种，分别是`代理服务器`、`自动切换模式`、`PAC情景模式`以及`虚情景模式`，新建情景模式的时候有这四种情景模式可选。
 
 <div align="left">
-<img src="./figures/switchy_001.png" width = "50%" />
+<img src="./figures/switchy_001.png" width = "90%" />
 </div>
 
 我们主要配置 `代理服务器(proxy)` 和 `自动切换模式(auto switch)` 即可。
@@ -44,7 +44,7 @@ SwitchyOmega 情景模式一共有四种，分别是`代理服务器`、`自动�
 我们需要根据本地安装的科学上网客户端设置 `代理服务器地址` 和 `代理端口`，如图所示：
 
 <div align="left">
-<img src="./figures/switchy_002.png" width = "50%" />
+<img src="./figures/switchy_002.png" width = "90%" />
 </div>
 
 ### 自动切换模式
@@ -56,7 +56,7 @@ SwitchyOmega 情景模式一共有四种，分别是`代理服务器`、`自动�
 `规则列表网址` 输入 `https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt` 然后点击 `立即更新情景模式` 即可。
 
 <div align="left">
-<img src="./figures/switchy_003.png" width = "50%" />
+<img src="./figures/switchy_003.png" width = "90%" />
 </div>
 
 `切换规则` 中的设置和 `规则列表设置` 是可以共存的，一般来说是前者的优先级更高。
@@ -70,7 +70,7 @@ SwitchyOmega 情景模式一共有四种，分别是`代理服务器`、`自动�
 配置完情景模式后，可以在浏览器地址栏右侧点击插件图标来切换代理的情景模式，推荐选择 `auto switch`。
 
 <div align="left">
-<img src="./figures/switchy_004.png" width = "50%" />
+<img src="./figures/switchy_004.png" width = "90%" />
 </div>
 
 此时本机的真实 IP 已经隐藏起来，当我们通过谷歌浏览器访问任何网站时，都不会留下真实的 IP 信息。
