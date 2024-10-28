@@ -147,8 +147,6 @@ export PATH=/home/changruiwang-ICME/Software/Multiwfn_3.8_dev_bin_Linux_noGUI:${
 
 最后，键入 **`0`** 回到基本设置界面，再键入 **`0`** 生成 AIMD 计算相关的输入文件 `cp2k.inp`。
 
-### Multiwfn 创建 CP2K 杂化泛函计算输入文件
-
 ---
 
 在发表文章时提及输入文件是借助 Multiwfn 创建的并恰当引用 Multiwfn 程序原文，
