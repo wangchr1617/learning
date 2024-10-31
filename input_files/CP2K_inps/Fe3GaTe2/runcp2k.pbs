@@ -1,0 +1,37 @@
+#PBS -N cp2k
+#PBS -l nodes=1:ppn=16
+#PBS -l walltime=24:00:00
+#PBS -q quick
+#PBS -S /bin/bash
+#PBS -V
+
+NP=`cat $PBS_NODEFILE | wc -l`
+NN=`cat $PBS_NODEFILE | sort | uniq | tee /tmp/nodes.$$ | wc -l`
+
+cat $PBS_NODEFILE > /tmp/nodefile.$$
+cd $PBS_O_WORKDIR
+ulimit -s unlimited
+
+source /opt/intel/bin/compilervars.sh intel64
+source /opt/intel/impi/2018.1.163/bin64/mpivars.sh intel64
+source /opt/intel/mkl/bin/mklvars.sh intel64
+
+# cp2k-7.1
+# EXEC=/home/changruiwang-ICME/bin/cp2k_centos.7.6.1810_intel18.0.0_glibc.2.17-260.popt
+
+# cp2k-9.1
+# module load apptainer/1.0.0
+# EXEC="apptainer exec /opt/software/cp2k/cp2k91/bin/cp2k91-1.sif cp2k.psmp"
+
+# cp2k-2023
+module load intel/2020.1.217
+source /home/changruiwang-ICME/Software/cp2k-2023.1/tools/toolchain/install/setup
+EXEC=/home/changruiwang-ICME/Software/cp2k-2023.1/exe/local/cp2k.popt
+
+# cp2k-2024
+# module load apptainer/1.0.0
+# EXEC="apptainer exec /home/changruiwang-ICME/Software/cp2k-2024/cp2k-2024.sif cp2k.psmp"
+
+export OMP_NUM_THREADS=1
+mpirun -machinefile $PBS_NODEFILE -np $NP $EXEC -i cp2k.inp 1>cp2k.out 2>cp2k.err
+

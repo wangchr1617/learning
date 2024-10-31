@@ -27,6 +27,7 @@
 
 - @[ZefengLi](https://github.com/Jeffery-Li0513)
 - @[ChangruiWang](https://github.com/wangchr1617)
+- @[JingjingHu](https://github.com/jingjingHu401)
 
 ## 🛠️ Usage
 

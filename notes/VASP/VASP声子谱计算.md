@@ -1,4 +1,77 @@
-# 声子谱计算
+# VASP 声子谱计算
+
+贡献者：胡京京、王昌锐
+
+---
+
+## Phonopy 安装
+
+`Phonopy` 是计算声子谱主流的软件。官网推荐的安装方式是使用 `conda install -c conda-forge phonopy` 安装，
+但是考虑到课题组集群不能联网的现实条件，本节首先介绍如何在自己的账号下离线安装 `Phonopy`。
+
+1. 下载 Phonopy 包
+
+访问 [PyPI](https://pypi.org/project/phonopy/) 或者 [Github](https://github.com/phonopy/phonopy.git) 下载 `Phonopy` 安装包并解压。
+
+2. 安装 Phonopy
+
+进入下载的目录：
+```
+cd phonopy
+```
+ 
+然后运行：
+```
+pip install .
+```
+如果自动解析并安装依赖失败，可以考虑手动安装所需依赖并通过 `python setup.py install` 直接调用 `setuptools`，使用 `setup.py` 中定义的配置来安装。
+
+3. 离线安装依赖库
+
+离线安装软件的原则是 “缺啥补啥” 。
+以 `Phonopy` 的依赖库 `spglib` 为例，可以访问 [PyPI](https://pypi.org/project/spglib/) 下载目标版本的 `.whl` 文件。
+
+注意根据集群修改文件名以符合当前集群操作系统规范。
+例如，`spglib-2.0.2-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl` 需要改为 `spglib-2.0.2-cp37-cp37m-linux_x86_64.whl`才能使用以下命令安装：
+```
+pip install spglib-2.0.2-cp37-cp37m-linux_x86_64.whl
+```
+
+4. 针对集群 2 的兼容性注意事项
+
+集群 2 因为支持的 Anaconda 版本过低，不能下载最新版本的 `Phonopy`，确定 `2.14.0` 版是兼容的。
+另外，由于集群 2 的 `GLIBC` 版本限制（仅支持到 2.12，可通过 `strings /lib64/libc.so.6 | grep GLIBC` 查看当前支持的 `GLIBC` 版本），
+`spglib` 也不能安装最新版本，目前确定 `spglib-1.16.0-cp37-cp37m-manylinux1_x86_64.whl` 是兼容的。
+
+5. 测试安装
+
+安装完成后，在命令行输入 `phonopy`。如果安装成功，会显示如下界面，标注 `Python` 和 `Spglib` 的版本号：
+```
+        _
+  _ __ | |__   ___  _ __   ___   _ __  _   _
+ | '_ \| '_ \ / _ \| '_ \ / _ \ | '_ \| | | |
+ | |_) | | | | (_) | | | | (_) || |_) | |_| |
+ | .__/|_| |_|\___/|_| |_|\___(_) .__/ \__, |
+ |_|                            |_|    |___/
+                                      2.12.0
+
+Python version 3.9.6
+Spglib version 1.16.2
+```
+
+6. 配置环境变量
+
+如果输入 `phonopy` 时出现 `bash: command not found` 的提示，
+则需要将 `Phonopy` 可执行文件所在的 `bin` 文件夹路径手动添加到 `~/.bashrc` 的环境变量里，
+方式如下：
+```
+echo 'export PATH=/your_phonopy_path/bin:$PATH' >> ~/.bashrc
+source ~/.bashrc
+```
+
+---
+
+## 声子谱计算
 
 1. 准备进行过结构优化的 POSCAR
 2. `phonopy -d --dim="2 2 1" ` # 在 xyz 方向扩胞大小
