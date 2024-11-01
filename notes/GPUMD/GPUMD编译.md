@@ -12,10 +12,34 @@
     ```
 3. 进入 `src` 目录并编译：
     ```bash
-    cd src/
+    cd <package_name>/src/
     make
     ```
 4. 编译完成后，将产生两个可执行文件：`gpumd` 和 `nep`。
+
+5. 环境变量设置
+
+如果编译失败，大概率是因为 `~/.bashrc` 里 `Intel` 和 `GCC` 相关的环境变量设置有问题。
+我的参考设置如下：
+```
+#### ---------------- Intel ------------------- ####
+export INTEL_MPI_HOME=/opt/intel2020/compilers_and_libraries_2020.1.217/linux/mpi
+export PATH=$INTEL_MPI_HOME/intel64/bin:$PATH
+export MANPATH=$INTEL_MPI_HOME/man:$MANPATH
+export LD_LIBRARY_PATH=$INTEL_MPI_HOME/intel64/lib:$LD_LIBRARY_PATH
+# source /opt/intel2020/compilers_and_libraries_2020.1.217/linux/bin/compilervars.sh intel64
+# source /opt/intel2020/mkl/bin/mklvars.sh intel64
+# source /opt/intel2020/intelpython3/bin/mpivars.sh
+###----------------------------------------------
+
+#### ----------------- GCC -------------------- ####
+export PATH=/opt/gcc/gcc-9.3.0/bin:${PATH}
+export LIBRARY_PATH=/opt/gcc/gcc-9.3.0/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/opt/gcc/gcc-9.3.0/lib64:$LD_LIBRARY_PATH
+export C_INCLUDE_PATH=/opt/gcc/gcc-9.3.0/include:$C_INCLUDE_PATH
+export CPLUS_INCLUDE_PATH=/opt/gcc/gcc-9.3.0/inclde:$CPLUS_INCLUDE_PATH
+###----------------------------------------------
+```
 
 ---
 
@@ -61,6 +85,9 @@ module load gcc/9.3
 
 ### 3.2 下载并解压安装包
 
+访问 [NEP_CPU GitHub 页面](https://github.com/brucefan1983/NEP_CPU) 下载 `.zip` 安装包。
+访问 [lammps GitHub 页面](https://github.com/lammps/lammps) 下载 `.tar.gz` 安装包，最好是 stable 版本。
+
 ```bash
 unzip NEP_CPU-main.zip
 tar -xzvf lammps-stable.tar.gz
@@ -100,22 +127,16 @@ cmake --build . -j 4
 #PBS -V
 #PBS -S /bin/bash
 
-# 加载编译器模块
 module load intel/2020.1.217
 
-# 获取节点和处理器信息
 NP=`cat $PBS_NODEFILE | wc -l`
 NN=`cat $PBS_NODEFILE | sort | uniq | tee /tmp/nodes.$$ | wc -l`
 cat $PBS_NODEFILE > /tmp/nodefile.$$
 
-# 切换到工作目录
 cd $PBS_O_WORKDIR
 ulimit -s unlimited
 export OMP_NUM_THREADS=3
 
-# 设置可执行文件路径
 EXEC=/home/changruiwang-ICME/Software/lammps_nep/build/lmp
-
-# 运行 LAMMPS
 mpirun -machinefile $PBS_NODEFILE -np $NP $EXEC -in in* > output
 ```
