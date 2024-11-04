@@ -1,6 +1,10 @@
 
 # VASP 电子结构分析
 
+贡献者：胡京京、王昌锐
+
+---
+
 本节将简单介绍
 
 1. ELF（电子局域函数）分析；
@@ -180,58 +184,84 @@ ADDGRID = .T.
 
 ## Lobster 键合分析
 
-Lobster 是用来读取和处理来自平面波 DFT 软件包的输出数据的。
-通过从离域平面波基组中重新提取原子分辨信息，Lobster 可以帮你投影 COOP 和 COHP 曲线，你可以使用它们来可视化 DFT 计算中的成键反键贡献。
+Lobster（Local Orbital Basis Suite Towards Electronic-Structure Reconstruction）是一个强有力的键合分析工具。
+下面介绍 Lobster 计算 COOP 和 COHP 的一般计算流程，你可以使用它们来分析 DFT 计算中的成键、反键贡献。
 
-1. 准备结构优化好的 POSCAR
-2. 准备 INCAR
+在自洽计算的基础上，`cp scf/ lobster/` 并删除 `lobster/` 中的波函数文件 `WAVECAR`。
+使用命令 `grep NBANDS OUTCAR` 查看自洽计算默认的 NBANDS。修改 `lobster/INCAR` 如下所示：
 
-```IOPTCRLL = 1 1 0 1 1 0 0 0 0 #固定z轴
-SYSTEM = Sc2B2
+```
+IOPTCRLL = 1 1 0 1 1 0 0 0 0
+SYMPREC = 1E-06
 
-#NCORE = 12
 ISTART = 0
 ICHARG = 2
-LCHARG = .F.
-LWAVE = .T. #
-ISYM = 0
+LCHARG = .F. 
+LWAVE = .T. # !!!
+ISYM = 0 # !!!
 IVDW = 10
 
 ALGO = Normal
 NELM = 120
-NBANDS = 650 #需要调高，是结构优化的1.5倍
-EDIFF = 1E-08 #需要调高
+EDIFF = 1E-08 # !!!
+NBANDS = 650 # 设置为自洽计算默认 NBANDS 的1.5倍
+LSORBIT = .T.
 
 IBRION = -1
-ISIF = 0
 NSW = 0
-EDIFFG = -1E-02
-LORBIT = 12
+EDIFFG = -1E-03
 
 ENCUT = 600
 ISMEAR = 0
 SIGMA = 0.05
-PREC = A
-LREAL = F
+PREC = A # !!!
+LREAL = A
 ADDGRID = .T.
 ```
-3. 准备 KPOINTS POTCAR 方法和做结构优化时一样
-4. 准备pbs文件，提交 
-5. 计算完成后，在当前目录创建一个新的文件夹`lobster`,将 CONTCAR KPOINTS OUTCAR POSCAR POTCAR WAVECAR vasprun.xml 复制到这个文件夹中，然后编辑一个名为 `lobsterin` 的文件，内容如下：
 
-```COHPStartEnergy -10
+提交作业，输出IBZKPT后，`cp IBZKPT KPOINTS`，再重新提交作业。
+在计算中尽量避免使用带有 `_sv` 后缀的 POTCAR。
+
+计算完成后，在当前目录创建一个新的文件夹 `lobster_out`，
+将 `CONTCAR`、`KPOINTS`、`POSCAR`、`POTCAR`、`OUTCAR`、`WAVECAR` 和 `vasprun.xml` 复制到这个文件夹中。
+然后编辑一个名为 `lobsterin` 的文件，内容如下：
+
+```
+COHPStartEnergy -10
 COHPEndEnergy 5
 
 basisSet pbeVaspFit2015
-includeOrbitals s p d   # 轨道类型，自行修改
-
-basisFunctions Sc 4s 3p 3d # 元素种类以及轨道
+includeOrbitals s p d   ! 轨道类型，自行修改
+basisFunctions Sc 4s 3p 3d ! 元素种类以及轨道
 basisFunctions B 2s 2p
 
+!cohpBetween atom 1 atom 2 orbitalWise ! 计算指定原子键合
+cohpGenerator from 2.7 to 3.0 type Sc type B orbitalWise ! 计算键长范围在指定范围内的原子键合
 
-cohpGenerator from 2.7 to 3.0 type Sc type B #键长范围，从 POTCAR 找
-
-gaussianSmearingWidth 0.05
+gaussianSmearingWidth 0.05 ! 对应 VASP 中的 SIGMA
 ```
-6. 准备pbs文件，提交
-7. 生成`ICOHPLIST.lobster`和`ICOOPLIST.lobster`文件。
+
+不确定 cohpGenerator 的键长指定范围时，可以使用命令 `python get_bond_total.py` 输出 `distance.sh`，内含不同原子间距对应的所有原子对。
+
+命令行键入 `lobster-4.1.0` 即可输出 `COHPCAR.lobster`、`ICOHPLIST.lobster`、`COOPCAR.lobster`、`ICOOPLIST.lobster` 等文件。
+但集群里更推荐使用 `qsub runlobster.pbs` 的方式提交作业以避免内存溢出。
+
+`COHPCAR.lobster` 第一列为能量，第二列为指定原子平均的 pCOHP，第三列是 pCOHP 的积分。
+`ICOHPLIST.lobster` 则反映了原子间距和 ICOHP 的关系。
+
+推荐使用 wxdragon 进行可视化分析：
+```
+wxdragon DOSCAR.lobster
+wxdragon COHPCAR.lobster
+```
+python 绘图参考 [网址](https://matgenb.materialsvirtuallab.org/2019/01/11/How-to-plot-and-evaluate-output-files-from-Lobster.html) ，样图示例如下：
+
+<div align="left">
+<img src="./figures/Lobster_001.png" width = "50%" />
+</div> 
+
+对于非晶体系，wxDragon 可以在 Lobster 输出文件 `BWDF.dat` 的基础上做键加权分布函数（BWDF）分析，样图示例如下：
+
+<div align="left">
+<img src="./figures/Lobster_002.png" width = "50%" />
+</div> 
