@@ -53,6 +53,6 @@ git clone https://github.com/wangchr1617/learning.git
 
 ## 💬 Contact
 
-Markdown 和 Git 相关问题请首先参阅 [Markdown 入门](./notes/Git/Markdown_入门.md) 和 [Git 入门](./notes/Git/Git_入门.md)。
+Markdown 和 Git 相关问题请首先参阅 [Markdown 入门](./notes/Git/Markdown入门.md) 和 [Git 入门](./notes/Git/Git入门.md)。
 
 如果有任何问题或建议，请随时提交 Issue 或联系仓库所有者。
