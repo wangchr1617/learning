@@ -1,7 +1,7 @@
 
 # Learning Repository
 
-本仓库旨在记录 Alkemie 课题组成员在学习与科研过程中常用的入门资源，并为团队提供一个共享、合作与提升科研水平的平台，方便成员查阅与贡献。
+本仓库旨在记录学习与科研过程中常用的入门资源，并为团队提供一个共享、合作与提升科研水平的平台，方便成员查阅与贡献。
 
 ## 🤝 Preface
 
@@ -25,6 +25,7 @@
 
 衷心感谢所有参与仓库建设的贡献者！
 
+- @[XuanguangZhang](https://github.com/DONCHANG7)
 - @[ZefengLi](https://github.com/Jeffery-Li0513)
 - @[ChangruiWang](https://github.com/wangchr1617)
 - @[JingjingHu](https://github.com/jingjingHu401)
@@ -41,7 +42,7 @@ git clone https://github.com/wangchr1617/learning.git
 
 - 首先需要 Fork 此仓库。
 - 为你的修改创建一个新分支。
-- 在本地编辑 .md 文件或者 .ipynb 文件放到 `drafts` 目录下。
+- 在本地编辑 `.md` 文件或者 `.ipynb` 文件放到 `drafts` 目录下。
 - 向 main 分支发起 Pull Request 将 commits 合并。
 
 注：有推送权限的同学可以直接 `git push` 修改仓库。
