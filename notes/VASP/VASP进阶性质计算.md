@@ -127,7 +127,8 @@ find job* -name vasprun.xml | sort -n | thirdorder_vasp.py reap 2 2 2 -8
 
 ## 电子热导率计算（BoltzTrap2 + VASP）
 
-热导率 *$\kappa_{e}$* = 晶格热导率 *$\kappa_{e}$*(l) + 电子热导率 *$\kappa_{e}$*(e)
+热导率 $\kappa_{e}$ = 晶格热导率 $\kappa_{e}$(l) + 电子热导率 $\kappa_{e}$(e)
+
 
 首先做高精度的结构优化和静态计算（使用的是和计算晶格热导率一样的 K 点分布）。
 在静态计算文件夹中使用如下命令调用 `BoltzTrap2`:

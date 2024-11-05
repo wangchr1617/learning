@@ -25,3 +25,9 @@ VASP 是维也纳大学 Hafner 小组开发的进行电子结构计算和量子�
 <img src="./figures/001.png" width = "50%" />
 </div>
 ```
+
+4. 网页：
+
+```
+[Anaconda 安装](https://github.com/wangchr1617/learning/blob/main/notes/Python/Anaconda%E5%AE%89%E8%A3%85.md)
+```
