@@ -45,7 +45,15 @@ git clone https://github.com/wangchr1617/learning.git
 - 在本地编辑 `.md` 文件或者 `.ipynb` 文件放到 `drafts` 目录下。
 - 向 main 分支发起 Pull Request 将 commits 合并。
 
-注：有推送权限的同学可以直接 `git push` 修改仓库。
+注：有推送权限的同学可以直接通过
+```
+git clone git@github.com:wangchr1617/learning.git
+
+git add .
+git commit -s -m "XXX"
+git push
+```
+修改仓库。
 
 ## 📄 License
 
