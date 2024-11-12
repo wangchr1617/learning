@@ -84,3 +84,48 @@ pip install ase==3.22.1 # 3.22.1 是版本号，可以不指定
 ```
 conda install -c conda-forge spglib # -c 用于指定要从哪个 channel 安装
 ```
+
+---
+
+## Linux 系统安装 Anaconda
+
+1. 下载安装包
+科学上网打开浏览器，访问 [Anaconda 官网](https://www.anaconda.com/download/) 下载适用于 Linux 的 `.sh` 格式的 Anaconda 安装程序（64-bit Installer），并拖入集群。
+使用命令 `chmod u+x Anaconda3-2023.07-2-Linux-x86_64.sh` 获取可执行权限。
+
+
+2. 安装 Anaconda
+使用命令 `ssh cu02` 切换到编译节点。
+`./Anaconda3-2020.07-Linux-x86_64.sh` 运行安装包，回车开始安装，键入 `q` 跳过相关条款阅读，键入 `yes` 接受许可证。
+Anaconda 默认安装在用户主目录下，直接回车即可安装。
+弹出 `Do you wish the installer to initialize Anaconda3 by running conda init?` 时，键入 `no` 回车即可。
+
+3. 修改系统环境变量
+编辑 `~/.bashrc` 文件并增加一行：
+
+```
+export PATH=/home/changruiwang-ICME/anaconda3/bin:${PATH}
+```
+
+使用命令 `conda --version` 检查 Anaconda 是否安装成功。
+使用命令 `python` 即可打开 Python，输入 `exit()` 退出 Python。
+
+升级或者恢复 Anaconda 时不需要卸载，只需要下载新的安装包，然后 `./Anaconda3-2023.09-0-Linux-x86_64.sh -u` 即可。
+
+集群 2 的账号不推荐自行安装最新的 Anaconda，因为安装进度可能会卡在 Unpacking payload 那一步。
+安装旧版的 Anaconda，如 `Anaconda3-2019.07-Linux-x86_64.sh`（使用命令 `locate Anaconda` 可以在集群 2 里找到安装包，默认的 Python 3.7.3）。
+
+---
+
+## Linux 系统创建虚拟环境
+
+集群断网时，命令 `conda create -n XXX --clone base` 通过克隆 base 环境创建虚拟环境 XXX。
+联网时，命令 `conda create -n XXX python=3.9` 创建指定 Python 版本的虚拟环境 XXX。
+
+`source activate XXX` 激活 XXX 环境；
+`conda deactivate` 退出当前虚拟环境；
+`conda env list` 查看已创建的环境；
+`conda remove -n XXX --all` 删除虚拟环境。
+
+集群里，后续自行安装的第三方库建议都安装在虚拟环境中避免污染 base 环境。
+命令 `which python` 查看当前环境的 Python 执行路径。

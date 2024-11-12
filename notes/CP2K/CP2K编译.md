@@ -34,10 +34,12 @@ docker run -it kaczmarj/apptainer pull docker://cp2k/cp2k:2024.1_openmpi_skylake
 git config --global http.postBuffer 524288000
 git clone --recursive https://github.com/cp2k/cp2k.git
 ```
+
 修改 `install_cp2k_toolchain.sh` 中：
 ```sh
 export TARGET_CPU="skylake-avx512"
 ```
+
 修改 `install_elpa.sh`：
 ```sh
 ../configure --prefix="${pkg_install_dir}/${TARGET}/" \
@@ -49,30 +51,37 @@ export TARGET_CPU="skylake-avx512"
     --without-threading-support-check-during-build \
     > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
 ```
+
 修改 `build_dockerhub_images.sh` 中 Dockerfile 的文件名：
 ```sh
 docker build --shm-size=1g --build-arg "GIT_COMMIT_SHA=${SHA}" -f Dockerfile.test_psmp -t "${TAG}" ../../
 ```
+
 使用 bash 命令运行脚本：
 ```sh
 bash build_dockerhub_images.sh
 ```
+
 脚本会在虚拟机上生成一个 CP2K 的镜像。使用 `docker images` 获取镜像 ID（例如：913358d296d9），并将其保存为 tar 文件：
 ```sh
 docker save 913358d296d9 -o cp2k-2024.tar
 ```
+
 将 tar 文件上传至集群，`ssh cu02` 切换到编译节点，加载 apptainer 模块并构建 sandbox：
 ```sh
 module load apptainer/1.0.0
 apptainer build --sandbox cp2k-2024 docker-archive://cp2k-2024.tar
 ```
+
 使用 `apptainer shell -w cp2k-2024` 以写入模式（-w）打开容器，并键入 `nano /.singularity.d/env/91-environment.sh` 编辑环境变量文件如下：
 ```sh
 source /opt/cp2k-toolchain/install/setup
 export PATH=$PATH:/opt/cp2k/exe/local
 export CP2K_DATA_DIR=/opt/cp2k/data
 ```
-修改完成后，按 `Ctrl + X` 保存并退出。最后，`apptainer build cp2k-2024.sif cp2k-2024` 将容器压缩成 SIF 可执行文件。
+
+修改完成后，按 `Ctrl + X` 保存并退出。
+最后，`apptainer build cp2k-2024.sif cp2k-2024` 将容器压缩成 SIF 可执行文件。
 这样就完成了 CP2K 的编译和部署，确保在集群上能够充分利用 AVX512 指令集，获得更好的性能。
 
 ---
