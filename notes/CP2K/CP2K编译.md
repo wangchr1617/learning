@@ -27,7 +27,7 @@ docker run -it kaczmarj/apptainer pull docker://cp2k/cp2k:2024.1_openmpi_skylake
 
 ---
 
-## 在虚拟机上使用Docker编译CP2K
+## 在虚拟机上使用 Docker 编译 CP2K
 
 首先准备好 Git，执行以下命令：
 ```sh
@@ -86,7 +86,7 @@ export CP2K_DATA_DIR=/opt/cp2k/data
 
 ---
 
-## 从源码编译CP2K的详细步骤
+## 从源码编译 CP2K 的详细步骤
 
 访问 [CP2K官网](https://www.cp2k.org/download) 下载 .tar.bz2 安装包，拖入集群，使用命令 `tar -jxvf cp2k-2023.1.tar.bz2` 解压。
 `ssh cu02` 切换到编译节点，然后进入安装目录。
