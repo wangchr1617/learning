@@ -30,6 +30,7 @@
 - @[ChangruiWang](https://github.com/wangchr1617)
 - @[JingjingHu](https://github.com/jingjingHu401)
 - @[YuchengLin](https://github.com/915957698)
+- @[MingyuYi](https://github.com/ymy010697)
 
 ## 🛠️ Usage
 
