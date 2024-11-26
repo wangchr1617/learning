@@ -25,6 +25,7 @@
 
 衷心感谢所有参与仓库建设的贡献者！
 
+- @[TongZhao](https://github.com/hathaway77)
 - @[XuanguangZhang](https://github.com/DONCHANG7)
 - @[ZefengLi](https://github.com/Jeffery-Li0513)
 - @[ChangruiWang](https://github.com/wangchr1617)

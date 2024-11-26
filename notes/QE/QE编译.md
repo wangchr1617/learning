@@ -32,7 +32,7 @@ echo $MKLROOT
 ```shell
 tar -zvxf qe-7.3.1-ReleasePack.tar.gz
 cd qe-7.3.1/
-./configure --with-cuda=no --with-scalapack=intel --with-scalapack-qrcp=yes MPIF90=mpiifort FC=ifort FCFLAGS=-O3 CC=icc CFLAGS=-O3 LIBDIRS="${MKLROOT}/lib/intel64/ /opt/intel2020/compilers_and_libraries_2020.1.217/linux/mpi/intel64/lib"
+./configure --enable-epw --with-cuda=no --with-scalapack=intel --with-scalapack-qrcp=yes MPIF90=mpiifort FC=ifort FCFLAGS=-O3 CC=icc CFLAGS=-O3 LIBDIRS="${MKLROOT}/lib/intel64/ /opt/intel2020/compilers_and_libraries_2020.1.217/linux/mpi/intel64/lib"
 make all -j
 ```
 
