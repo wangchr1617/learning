@@ -146,6 +146,10 @@ grep ! output # 查看优化过程中能量的变化过程
 grep -A 12 " Total force =" output # 查看优化过程中压力张量大小
 ```
 
+使用命令 `grep "convergence NOT achieved" output` 检查电子步是否收敛；
+使用命令 `grep "End final coordinates" output` 检查离子步是否收敛；
+如果 QE 结构优化并未在几个离子步内结束，高精度计算时需要提取最后一次离子步输出的结构再进行结构优化。
+
 计算结束后，运行
 
 ```

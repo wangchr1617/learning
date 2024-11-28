@@ -24,7 +24,7 @@ export PATH=/home/XXX/Vaspkit/vaspkit.1.4.0/bin:$PATH
 <img src="./figures/VASPKIT_001.png" width = "50%" />
 </div>
  
-在 `~/.vaspkit` 文件中修改 `MINI_INCAR` 为 `.TRUE.` 可以清除 VASPKIT 生成的 INCAR 中的注释。
+在 `~/.vaspkit` 文件中修改 `SET_MINI_INCAR` 为 `.TRUE.` 可以清除 VASPKIT 生成的 INCAR 中的注释。
 
 ---
 

@@ -32,8 +32,21 @@ echo $MKLROOT
 ```shell
 tar -zvxf qe-7.3.1-ReleasePack.tar.gz
 cd qe-7.3.1/
-./configure --enable-epw --with-cuda=no --with-scalapack=intel --with-scalapack-qrcp=yes MPIF90=mpiifort FC=ifort FCFLAGS=-O3 CC=icc CFLAGS=-O3 LIBDIRS="${MKLROOT}/lib/intel64/ /opt/intel2020/compilers_and_libraries_2020.1.217/linux/mpi/intel64/lib"
+./configure --with-cuda=no --with-scalapack=intel --with-scalapack-qrcp=yes MPIF90=mpiifort FC=ifort FCFLAGS=-O3 CC=mpiicc CFLAGS=-O3
+vi make.inc
 make all -j
+make epw
+```
+
+注意修改 `make.inc` 对应字段为以下内容：
+
+```shell
+FFLAGS = -O3 -assume byterecl -g -traceback
+BLAS_LIBS = -L${MKLROOT}/lib/intel64 -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_blacs_intelmpi_lp64 -lpthread -lm -ldl
+LAPACK_LIBS = -L${MKLROOT}/lib/intel64 -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_blacs_intelmpi_lp64 -lpthread -lm -ldl
+SCALAPACK_LIBS = -L${MKLROOT}/lib/intel64 -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_blacs_intelmpi_lp64 -lpthread -lm -ldl
+FFT_LIBS = -L${MKLROOT}/lib/intel64 -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_blacs_intelmpi_lp64 -lpthread -lm -ldl
+MPI_LIBS = -L/opt/intel2020/impi/2019.7.217/intel64/lib
 ```
 
 正常结束的话，`qe-7.3.1/bin` 目录里有各种 `.x` 结尾的可执行程序，代表安装成功。
