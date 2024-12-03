@@ -58,19 +58,29 @@ source ~/.bashrc
 
 ## 声子谱计算
 
-### 方法概述
-
 VASP 结合 `Phonopy` 计算声子谱有两种主要方法：
 
 1. **有限位移法**: 又称 frozen-phonon 方法或直接法。
+
+> 有限位移法是通过在优化后的平衡结构中引入原子位移，计算作用在原子上的 Hellmann-Feynman 力，进而由动力学矩阵算出声子色散曲线。
+> 有限位移法的缺陷在于它要求声子波矢与原胞边界 supersize 正交，或者原胞足够大使得 Hellmann-Feynman 力在原胞外可以忽略不计。
+> 这使得对于复杂系统，如对称性高的晶体、合金、超晶格等材料需要采用超原胞。
+> 超原胞的采用使计算量急剧增加，极大的限制了该方法的使用。
+
 2. **密度泛函微扰理论 (DFPT)**。
+
+> 1987年，Baroni、Giannozzi 和 Testa 提出了 DFPT 方法。
+> DFPT 通过计算系统能量对外场微扰的响应来求出晶格动力学性质。
+> 该方法最大的优势在于它不限定微扰的波矢与原胞边界正交，不需要超原胞也可以对任意波矢求解。
+> Castep、Vasp 等采用的是一种 linear response theory 的方法（或者称为 density perturbation functional theory，DFPT）。
+> 直接计算出原子的移动而导致的势场变化，再进一步构造出动力学矩阵，进而计算出声子谱。
 
 无论使用哪种方法，都需要非常高的计算精度（如 `EDIFF = 1E-08`），并确保初始结构已充分优化以减少虚频的可能性。
 
-### 超胞生成
+### Phonopy 前处理
 
 - 声子谱计算要求超胞的晶格常数通常大于 10 Å，原子数在 100 左右。
-- 优化完成后，执行扩胞操作：
+- 优化完成后，执行扩胞操作，将 POSCAR 沿着 a、b、c 轴分别扩 4 倍：
   ```
   phonopy -d --dim="4 4 4" --pa="AUTO"
   ```
@@ -91,28 +101,17 @@ VASP 结合 `Phonopy` 计算声子谱有两种主要方法：
      mv $i $name/POSCAR
    done
    ```
-2. 在各个文件夹中运行高精度单点计算，生成 `vasprun.xml`。
-3. 提取力信息：
-   ```
-   phonopy -f {001..004}/vasprun.xml
-   ```
-   生成 `FORCE_SETS` 文件。
+2. 在各个文件夹中运行高精度单点计算（`IBRION = -1`），生成 `vasprun.xml`。
+3. 使用命令 `phonopy -f {001..004}/vasprun.xml` 生成 `FORCE_SETS` 文件；
+   或者使用命令 `phonopy --fc {001..004}/vasprun.xml` 生成 `FORCE_CONSTANTS` 文件。
 
 ### 密度泛函微扰理论 (DFPT)
 
 1. 将 `SPOSCAR` 复制为 `POSCAR`。
-2. 在 `INCAR` 中设置：
-   ```
-   IBRION = 8
-   ```
-   若需要考虑色散校正或自旋轨道耦合，可设置 `IBRION = 5` 或 `IBRION = 6`。
-3. 运行计算后，提取力常数：
-   ```
-   phonopy --fc vasprun.xml
-   ```
-   生成 `FORCE_CONSTANTS` 文件。
+2. 在 `INCAR` 中设置 `IBRION = 8`。若需要考虑色散校正或自旋轨道耦合，可设置 `IBRION = 5` 或 `IBRION = 6`。
+3. 使用命令 `phonopy --fc vasprun.xml` 生成 `FORCE_CONSTANTS` 文件。
 
-### 后处理
+### 检查输出
 
 1. **检查计算**:
    ```
@@ -130,7 +129,7 @@ VASP 结合 `Phonopy` 计算声子谱有两种主要方法：
    phonopy writefc.conf
    ```
 
-### 声子谱绘制
+### Phonopy 后处理绘制声子谱
 
 1. **生成 `band.conf`**:
    使用 `vaspkit 305 3` 创建 `KPATH.phonopy` 文件，并修改为 `band.conf`。
@@ -148,6 +147,7 @@ VASP 结合 `Phonopy` 计算声子谱有两种主要方法：
    BAND_CONNECTION = .TRUE.
    EIGENVECTORS = .TRUE. # 输出本征矢
    FORCE_CONSTANTS = READ # 读取 FORCE_CONSTANTS
+   FC_SYMMETRY = .TRUE.
    
    # FORCE_SETS = READ # 也可以选择读取 FORCE_SETS
    # IRREPS = 0  0  0

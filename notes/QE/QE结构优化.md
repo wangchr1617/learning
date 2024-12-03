@@ -44,13 +44,14 @@ K_POINTS automatic
  calculation = 'vc-relax' 	! A string describing the task to be performed.
  verbosity = 'high'
  nstep = 100 				! number of molecular-dynamics or structural optimization steps performed in this run.
- tstress=.true. 			! calculate stress.
- tprnfor=.true. 			! calculate forces.
- outdir= './tmp' 			! input, temporary, output files are found in this directory
+ tstress = .true. 			! calculate stress.
+ tprnfor = .true. 			! calculate forces.
+ outdir = './outdir' 		! input, temporary, output files are found in this directory
  prefix = 'pwscf' 			! prepended to input/output filenames
- forc_conv_thr = 1.0d-4 	! Convergence threshold on forces (a.u) for ionic minimization
+ etot_conv_thr = 1.0d-7		! Convergence threshold on total energy (a.u) for ionic minimization
+ forc_conv_thr = 1.0d-5 	! Convergence threshold on forces (a.u) for ionic minimization
  disk_io = 'low' 			! Specifies the amount of disk I/O activity
- pseudo_dir= './' 			! directory containing pseudopotential files
+ pseudo_dir= '/home/changruiwang-ICME/UPF/SSSP/'	! directory containing pseudopotential files
 /
 &SYSTEM
  ibrav = 0 					! Bravais-lattice index.
@@ -60,9 +61,9 @@ K_POINTS automatic
  ecutrho = 500 				! Kinetic energy cutoff (Ry) for charge density and potential
  nosym = .false. 			! if (.TRUE.) symmetry is not used.
  noinv = .false. 			! if (.TRUE.) disable the usage of k => -k symmetry
- occupations = 'smearing'
- degauss = 1.0d-9 			! value of the gaussian spreading (Ry) for brillouin-zone
- smearing = 'gauss'
+ occupations = 'fixed'
+ degauss = 0.01			! value of the gaussian spreading (Ry) for brillouin-zone
+ smearing = 'gaussian'
  nspin = 1 					! non-polarized calculation
  vdw_corr = 'dft-d3' 		! Type of Van der Waals correction
  dftd3_version = 4 			! Grimme-D3 BJ damping
@@ -70,7 +71,7 @@ K_POINTS automatic
 &ELECTRONS
  electron_maxstep = 100 	! maximum number of iterations in a scf step.
  scf_must_converge = .false. ! If .false. do not stop molecular dynamics or ionic relaxation when electron_maxstep is reached.
- conv_thr = 1.0d-7 			! Convergence threshold for selfconsistency
+ conv_thr = 1.0d-9 			! Convergence threshold for selfconsistency
  mixing_mode = 'plain' 		! charge density Broyden mixing
  mixing_beta = 0.8d0 		! mixing factor for self-consistency
  diagonalization = 'david' 	! Davidson iterative diagonalization with overlap matrix
@@ -93,8 +94,8 @@ CELL_PARAMETERS angstrom
    -2.10927799    3.65337664    0.00000000
     0.00000000    0.00000000   11.03915739
 ATOMIC_SPECIES
-Ge  72.6276  Ge.UPF
-Te 127.6031  Te.UPF
+Ge  72.6276  ge_pbe_v1.4.uspp.F.UPF
+Te 127.6031  Te_pbe_v1.uspp.F.UPF
 ATOMIC_POSITIONS angstrom
 Ge    0.000000    0.000000   10.968286
 Ge    2.109299    1.217780    3.608811
