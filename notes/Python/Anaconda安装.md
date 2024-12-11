@@ -129,3 +129,29 @@ export PATH=/home/changruiwang-ICME/anaconda3/bin:${PATH}
 
 集群里，后续自行安装的第三方库建议都安装在虚拟环境中避免污染 base 环境。
 命令 `which python` 查看当前环境的 Python 执行路径。
+
+## pip 安装注意事项
+
+可以尝试使用国内镜像源（如清华大学的镜像源），这可以提高下载速度并绕过可能的 SSL 问题。
+使用清华镜像源的方法如下：
+```
+pip install d2l==0.17.6 -i https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+如果不想让 pip 自动降级已有的包，可以使用 `--no-deps` 选项来禁止安装依赖项的更新或降级。
+这样，pip 会仅安装指定的包，而不会更改其他已安装的包版本，例如：
+```
+pip install d2l==0.17.6 --no-deps
+```
+
+在某些情况下，如果不确定是否会降级已有包，可以在执行安装前，查看安装的包的当前版本，并记录下来。
+安装后，可以验证包是否发生了变化。
+如果遇到频繁的降级问题，也可以考虑使用 `pip freeze` 来锁定当前环境的包版本，并将其保存到一个文件中：
+```
+pip freeze > requirements.txt
+```
+安装或更新 d2l 后，再通过：
+```
+pip install -r requirements.txt
+```
+来恢复原有环境中的包版本。

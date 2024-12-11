@@ -1,0 +1,114 @@
+# general
+root: results # 训练结果的根目录
+run_name: gete # 运行的名称，会用作输出文件夹名称的一部分
+seed: 123 # 随机种子，用于模型初始化
+dataset_seed: 456 # 数据集随机种子，用于数据集的分割
+append: true # 如果设置为 true，重新开始运行时会追加到已有日志文件
+default_dtype: float32 # 默认使用的浮点数精度
+model_dtype: float32 # 模型计算中使用的浮点数精度
+
+# network
+model_builders:
+ - allegro.model.Allegro # Allegro 模型的主模块，用于构建模型
+ - PerSpeciesRescale # 对不同原子种类进行特定缩放的模块
+ - ForceOutput # 计算力的模块
+ - RescaleEnergyEtc # 对能量等全局变量进行缩放的模块
+
+# radial cutoff and basis
+r_max: 6.5 # 截止半径（以 Å 为单位），指定原子间相互作用的范围
+avg_num_neighbors: auto # 平均邻居数量，用于归一化相互作用和加速计算
+num_basis: 8 # 基函数的数量，用于径向基函数表示
+BesselBasis_trainable: true # 是否训练贝塞尔基函数的权重
+PolynomialCutoff_p: 6 # 多项式截止函数的 p 参数，用于控制距离衰减
+
+# symmetry
+l_max: 2 # 最大旋转阶数，控制等变特征的对称性表示
+parity: o3_full # 是否包括镜像对称性，`o3_full` 表示完全对称
+
+# number of tensor product layers
+num_layers: 1 # 张量积层的数量，通常 1 层即可满足要求
+env_embed_multiplicity: 16 # 环境嵌入特征的数量
+embed_initial_edge: true # 是否嵌入初始边，true 通常效果较好
+
+# hidden layer dimensions of the 2-body embedding MLP
+two_body_latent_mlp_latent_dimensions: [128, 256, 512, 1024] # 两体嵌入 MLP 的隐藏层维度
+two_body_latent_mlp_nonlinearity: silu # 两体嵌入 MLP 的非线性激活函数
+two_body_latent_mlp_initialization: uniform # 两体嵌入 MLP 的权重初始化方式
+
+# hidden layer dimensions of the latent MLP
+latent_mlp_latent_dimensions: [1024, 1024, 1024] # 潜在空间 MLP 的隐藏层维度
+latent_mlp_nonlinearity: silu # 潜在空间 MLP 的非线性激活函数
+latent_mlp_initialization: uniform # 潜在空间 MLP 的权重初始化方式
+latent_resnet: false # 是否在潜在空间中使用 ResNet 风格更新
+
+# hidden layer dimensions of the environment embedding MLP
+env_embed_mlp_latent_dimensions: [128] # 环境嵌入 MLP 的隐藏层维度，单层无非线性
+env_embed_mlp_nonlinearity: null # 环境嵌入 MLP 的非线性激活函数，null 表示无激活
+env_embed_mlp_initialization: uniform # 环境嵌入 MLP 的权重初始化方式
+
+# final MLP to go from Allegro latent space to edge energies
+edge_eng_mlp_latent_dimensions: [128] # 从潜在空间到边能量的最终 MLP 的隐藏层维度
+edge_eng_mlp_nonlinearity: null # 最终 MLP 的非线性激活函数，null 表示无激活
+edge_eng_mlp_initialization: uniform # 最终 MLP 的权重初始化方式
+
+# data
+dataset: ase # 数据集类型，`ase` 表示使用 ASE 支持的格式
+dataset_file_name: ./train.xyz # 数据集文件路径
+ase_args:
+  format: extxyz # ASE 读取的文件格式
+
+# A mapping of chemical species to type indexes is necessary if the dataset is provided with atomic numbers instead of type indexes.
+chemical_symbol_to_type: # 化学元素到类型索引的映射
+  Ge: 0
+  Te: 1
+
+# training
+n_train: 5000 # 训练样本数量
+n_val: 500 # 验证样本数量
+batch_size: 5 # 批次大小
+max_epochs: 100000 # 最大训练轮数
+learning_rate: 0.01 # 学习率
+train_val_split: random # 训练集和验证集的划分方式，`random` 表示随机划分
+shuffle: true # 数据是否打乱，通常设置为 true
+metrics_key: validation_loss # 衡量训练效果的指标，通常选择验证损失
+use_ema: true # 是否使用指数移动平均，通常有助于训练
+ema_decay: 0.99 # EMA 的衰减因子
+ema_use_num_updates: true # EMA 的更新方式
+
+# loss function
+loss_coeffs: # 损失函数的权重配置
+  forces: 1.0 # 力的损失权重
+  total_energy:
+    - 1.0 # 总能量的损失权重
+    - PerAtomMSELoss # 每原子均方误差损失
+
+metrics_components: # 训练中记录的评价指标
+  - - forces # 评估力的指标
+    - mae # 平均绝对误差
+  - - forces
+    - rmse # 均方根误差
+  - - total_energy
+    - mae
+    - PerAtom: True # 每原子归一化的能量误差
+
+# optimizer
+optimizer_name: Adam # 优化器类型
+optimizer_amsgrad: false # 是否使用 AMSGrad
+optimizer_betas: !!python/tuple # Adam 优化器的 beta 参数
+  - 0.9
+  - 0.999
+optimizer_eps: 1.0e-08 # Adam 优化器的 epsilon 值
+optimizer_weight_decay: 0. # 权重衰减
+
+# lr scheduler, drop lr if no improvement for 20 epochs
+lr_scheduler_name: ReduceLROnPlateau # 学习率调度器类型
+lr_scheduler_patience: 20 # 学习率下降的等待轮数
+lr_scheduler_factor: 0.5 # 学习率下降的因子
+
+# early stopping
+early_stopping_upper_bounds: # 提前停止的上界条件
+  cumulative_wall: 604800. # 训练总时长的上限，单位为秒（7 天）
+early_stopping_lower_bounds: # 提前停止的下界条件
+  LR: 1.0e-5 # 最低学习率下限
+early_stopping_patiences: # 提前停止的等待轮数
+  validation_loss: 100 # 如果验证损失在 100 个 epoch 内无改善，则停止

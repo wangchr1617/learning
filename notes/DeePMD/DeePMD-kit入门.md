@@ -161,11 +161,42 @@ mpirun -machinefile $PBS_NODEFILE -np $NP $EXEC train input.json > output
 
 训练中需要使用预训练模型时，可以在 `$EXEC train input.json ` 后面增加 `--finetune ../pretrain_model/model.pt` 选项，表示在模型 `../pretrain_model/model.pt` 的基础上微调。
 
-训练结束时，需要使用命令 `dp freeze -o graph.pb` 冻结模型参数为一个 `.pb` 文件，通过 `-o` 参数指定模型文件名。
+训练结束时，需要使用命令 `dp freeze -o graph.pb` 冻结模型参数为一个 `.pb` 文件，通过 `-o` 参数指定模型文件名。它将在当前目录中输出一个名为 graph.pb 的模型文件。
+
 压缩模型能将 DPMD 的模拟速度再提高一个数量级，并且消耗更少的内存。
 可以使用命令 `dp compress -i graph.pb -o graph-compress.pb` 压缩 `graph.pb`。
 
-如果准备了验证集，可以使用命令 `dp test -m graph-compress.pb -s ./valid/Ge64Ge64/ -n 40 -d results` 检查训练模型的质量，它将在当前目录中输出名为 `results.e.out` 和 `results.f.out` 的文件。
+如果准备了验证集，可以使用命令 `dp test -m graph-compress.pb -s ./test/ -d results` 检查训练模型的质量，它将在当前目录中输出名为 `results.e.out` 和 `results.f.out` 等文件。
+
+也可以使用下面的 Python 代码。
+```
+import dpdata
+training_systems = dpdata.LabeledSystem("./train/Ge108Te108/", fmt = "deepmd/npy")  # 得到训练数据点
+predict = training_systems.predict("./graph.pb")  # 得到预测数据点
+```
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Data from the file results.e_peratom.out
+with open("results.e_peratom.out", "r") as file:
+    lines = file.readlines()
+data_lines = [line for line in lines if not line.strip().startswith("#")]
+x_data, y_data = zip(*[map(float, line.split()) for line in data_lines])
+
+# Create the plot
+plt.figure(figsize=(8, 8))
+plt.scatter(x_data, y_data, label='Data points')
+plt.plot([-4.15, -4.12], [-4.15, -4.12], color='red', linestyle='--', label='y=x (Diagonal)')
+plt.xlabel('data_e (First Column)', fontsize=12)
+plt.ylabel('pred_e (Second Column)', fontsize=12)
+plt.title('Comparison of Data_e and Pred_e', fontsize=14)
+plt.legend()
+plt.grid(alpha=0.5)
+plt.axis('equal')  # Ensure the x and y scales are the same
+plt.tight_layout()
+plt.savefig("e_peratom.png")
+
 
 ---
 
