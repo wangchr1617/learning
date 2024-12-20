@@ -102,13 +102,13 @@ VASP 结合 `Phonopy` 计算声子谱有两种主要方法：
    done
    ```
 2. 在各个文件夹中运行高精度单点计算（`IBRION = -1`），生成 `vasprun.xml`。
-3. 使用命令 `phonopy -f {001..004}/vasprun.xml` 生成 `FORCE_SETS` 文件；
+3. 使用命令 `phonopy -f {001..002}/vasprun.xml --pa="0.0 0.5 0.5 0.5 0.0 0.5 0.5 0.5 0.0"` 生成 `FORCE_SETS` 文件，`--pa` 参数适用于惯用胞计算；
    或者使用命令 `phonopy --fc {001..004}/vasprun.xml` 生成 `FORCE_CONSTANTS` 文件。
 
 ### 密度泛函微扰理论 (DFPT)
 
 1. 将 `SPOSCAR` 复制为 `POSCAR`。
-2. 在 `INCAR` 中设置 `IBRION = 8`。若需要考虑色散校正或自旋轨道耦合，可设置 `IBRION = 5` 或 `IBRION = 6`。
+2. 在 `INCAR` 中设置 `IBRION = 8`、`NSW = 1`、`ISIF = 3`。若需要考虑色散校正或自旋轨道耦合，可设置 `IBRION = 5` 或 `IBRION = 6`。
 3. 使用命令 `phonopy --fc vasprun.xml` 生成 `FORCE_CONSTANTS` 文件。
 
 ### 检查输出
