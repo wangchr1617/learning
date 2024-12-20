@@ -6,6 +6,7 @@ dataset_seed: 456 # 数据集随机种子，用于数据集的分割
 append: true # 如果设置为 true，重新开始运行时会追加到已有日志文件
 default_dtype: float32 # 默认使用的浮点数精度
 model_dtype: float32 # 模型计算中使用的浮点数精度
+allow_tf32: false # 运行在非 GPU 环境下推理
 
 # network
 model_builders:
