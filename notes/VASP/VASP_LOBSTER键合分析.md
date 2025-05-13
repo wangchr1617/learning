@@ -63,6 +63,7 @@ basisFunctions Ge 4s 4p 				! 指定元素种类以及轨道
 basisFunctions Te 5s 5p
 
 ! cohpBetween atom 1 atom 2 orbitalWise	! 分析指定原子键合
+! cohpBetween atom 3 atom 2 orbitalWise	! cohpBetween 和 cohpGenerator 命令都可以重复调用
 cohpGenerator from 2.0 to 4.0 type Ge type Te orbitalWise ! 根据截断距离分析一类原子键合
 cohpGenerator from 3.5 to 5.0 type Ge type Ge orbitalWise
 cohpGenerator from 3.5 to 5.0 type Te type Te orbitalWise
