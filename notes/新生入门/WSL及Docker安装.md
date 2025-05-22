@@ -3,10 +3,16 @@
 
 ## WSL 2 安装
 
-首先打开 Windows `控制面板 - 程序 - 程序和功能 - 启用或关闭 Windows 功能`，勾选`打开Hyper-V`、`适用于 Linux 的 Windows 子系统`、`虚拟机平台`三个子功能。
+WSL（Windows Subsystem for Linux）是微软开发的一项技术，允许用户在 Windows 系统中直接运行完整的 Linux 环境，无需虚拟机。
+WSL2 是 WSL 的升级版本，提供了更高的性能和完全的系统调用兼容性。
 
-更新成功后重启电脑，以管理员的身份打开 Windows PowerShell，并在终端输入`wsl --update`。
-进度条拉满后输入`wsl –install`（这一步可能要翻墙，`-d`参数指定版本，默认是Ubuntu），等待安装完成后填写用户名和密码（密码屏幕不显示），然后再次重启电脑。
+首先打开 Windows `控制面板 - 程序 - 程序和功能 - 启用或关闭 Windows 功能`，勾选 `打开Hyper-V`、`适用于 Linux 的 Windows 子系统`、`虚拟机平台` 三个子功能。
+更新成功后重启电脑确保所有更改生效。
+
+以管理员的身份打开 Windows PowerShell，并在终端输入`wsl --update`。
+进度条拉满后输入`wsl –-install`（这一步可能要翻墙，`-d`参数指定版本，默认是Ubuntu），等待安装完成后填写用户名和密码（密码屏幕不显示），然后再次重启电脑。
+
+**再次启动 WSL 时，只需要在终端内键入 `wsl` 即可。**
 
 > 如果 Linux 文件系统不想安装在 C 盘，可以从 [网址](https://cloud-images.ubuntu.com/releases/focal/release/) 下载所需发行版的 `.tar.gz` 文件。
 > 假设 `.tar.gz` 文件位于 `D:\Ubuntu` 文件夹下，并且你希望将其导入到 `D:\Ubuntu\Ubuntu-20.04` 路径下，运行：
@@ -18,7 +24,10 @@
 > 执行后，WSL 会将 `ubuntu-20.04.tar.gz` 导入到 `D:\Ubuntu\MyUbuntu` 文件夹，并创建该路径下的 Linux 文件系统。
 > 可以使用 `wsl --set-default MyUbuntu` 将新的发行版设置为默认。
 
-WSL 安装完成后记得使用 `wsl -l -v` 确保 Ubuntu 发行版已更新为 WSL 2。然后运行 `wsl` 启动 WSL 2。
+WSL 安装完成后记得使用 `wsl -l -v` 确保 Ubuntu 发行版已更新为 WSL 2。
+
+首次创建账户成功后可以使用命令 `sudo apt update && sudo apt upgrade -y` 更新软件源并升级所有包；
+并使用命令 `sudo apt install -y git curl wget vim` 安装开发常用基础工具。
 
 MobaXterm 提供了对 WSL 的直接支持，无需复杂配置。
 打开 MobaXterm，点击顶部工具栏的 "Session" 按钮，在弹出的对话框中选择 "WSL"（在右侧的选项中），点击 OK，MobaXterm 将打开对应的 WSL 终端。

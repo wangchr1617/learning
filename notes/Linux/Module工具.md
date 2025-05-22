@@ -70,6 +70,18 @@ prepend-path LD_LIBRARY_PATH "${topdir}/lib64"
 prepend-path CPATH "${topdir}/include"
 ```
 
+Module 工具中，`setenv`、`append-path` 和 `prepend-path` 是用于操作环境变量的关键命令，它们在 Modulefile 中有不同的用途和效果：
+```
+# 设置软件根目录（非路径变量）
+setenv MYAPP_HOME "/opt/myapp"
+
+# 添加可执行目录到 PATH 开头（优先使用）
+prepend-path PATH "$env(MYAPP_HOME)/bin"
+
+# 添加库目录到 LD_LIBRARY_PATH 末尾（备选）
+append-path LD_LIBRARY_PATH "$env(MYAPP_HOME)/lib"
+```
+
 如果我想指定 gcc/9.3 为默认版本，可以在 `modulefile` 同级目录下创建 `.version` 文件如下所示：
 ```
 #%Module1.0
