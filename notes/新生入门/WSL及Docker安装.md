@@ -34,6 +34,31 @@ MobaXterm 提供了对 WSL 的直接支持，无需复杂配置。
 
 ---
 
+## WSL 科学上网（clash）
+
+Windows 搜索 `WSL Settings`，打开后选择左侧 `网络` 选项卡，将 `网络模式` 改为 `Mirrored`。
+
+
+勾选 clash `允许局域网`，查看端口号（默认是 7890）。
+然后在 cmd 中使用命令 `ipconfig` 查看以太网适配器 vEthernet (WSL (Hyper-V firewall)) 的 IPv4 地址（一般是以 172 开头，例如：172.31.0.1）。
+
+检查 Clash 配置文件，将DNS 监听地址（例如：127.0.0.1:53）改为监听所有接口（0.0.0.0:53），以便允许 WSL 通过宿主机 IP 访问。
+
+在 WSL 的 Shell 配置文件（如 ~/.bashrc）中添加代理设置：
+```
+export host_ip="172.31.0.1"
+export HTTP_PROXY="http://$host_ip:7890" 
+export HTTPS_PROXY="http://$host_ip:7890"
+export ALL_PROXY="socks5://$host_ip:7890" 
+```
+
+运行以下命令，即可临时禁用代理环境变量：
+```
+unset HTTP_PROXY HTTPS_PROXY ALL_PROXY
+```
+
+---
+
 ## Docker 安装
 
 Docker 是一种流行的容器化平台，它能够简化应用程序的部署和管理。
@@ -55,8 +80,7 @@ sudo apt install apt-transport-https ca-certificates curl software-properties-co
 ```
 curl -fsSL https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 ```
-
-添加阿里的 apt 源：
+然后添加阿里的 apt 源：
 ```
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://mirrors.aliyun.com/docker-ce/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 ```
