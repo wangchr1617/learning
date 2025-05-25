@@ -31,6 +31,7 @@ WSL 安装完成后记得使用 `wsl -l -v` 确保 Ubuntu 发行版已更新为 
 
 MobaXterm 提供了对 WSL 的直接支持，无需复杂配置。
 打开 MobaXterm，点击顶部工具栏的 "Session" 按钮，在弹出的对话框中选择 "WSL"（在右侧的选项中），点击 OK，MobaXterm 将打开对应的 WSL 终端。
+
 ---
 
 ## Docker 安装
@@ -126,6 +127,8 @@ sudo service docker restart
 sudo docker search ubuntu
 ```
 
+---
+
 ## 下载 Docker 镜像
 
 使用 `docker pull` 命令下载 Docker 镜像，例如： 
@@ -141,6 +144,8 @@ wchr@LAPTOP-SPENR6IJ:/mnt/c/Users/wangchangrui$ docker images
 REPOSITORY   TAG       IMAGE ID       CREATED       SIZE
 ubuntu       20.04     b7bab04fd9aa   6 weeks ago   72.8MB
 ```
+
+---
 
 ## 运行 Docker 容器
 
@@ -178,7 +183,144 @@ sudo docker kill 2105f3ec080a # 强制关闭，谨慎使用
 
 如果需要启动一个已停止的容器​​（不创建新容器），使用 `docker start` 命令。
 
+---
+
 ## 构建自定义 Docker 镜像
 
 我们可以创建自定义的 Docker 镜像，避免不同系统、软件间的环境冲突。
 
+### Dockerfile 构建镜像（以 Ovito 为例）
+
+通过文本文件（Dockerfile）定义镜像的构建步骤，包括基础镜像、依赖安装、文件复制、环境变量配置等。
+
+在一个空目录下，新建一个名为 Dockerfile 文件，并在文件内添加以下内容：
+```shell
+# 指定基础镜像，用于后续的指令构建。
+FROM ubuntu:24.04 
+
+# 在容器内部设置环境变量
+ENV DEBIAN_FRONTEND=noninteractive
+ENV INITRD=No
+ENV container=docker
+
+# 使用 RUN 在镜像中执行 shell 命令。
+RUN apt update && apt upgrade -y && \
+    apt install -y \
+    wget \
+    curl \
+    git \
+    build-essential \
+    zlib1g-dev \
+    libffi-dev \
+    libssl-dev \
+    libsqlite3-dev \
+    libbz2-dev \
+    liblzma-dev \
+    libreadline-dev \
+    vim
+
+# 安装 Qt6 图形库
+RUN apt install -y --no-install-recommends \
+    libqt6core6 \
+    libqt6gui6 \
+    libqt6widgets6 \
+    libgl1-mesa-dev
+
+# 安装 Python
+RUN apt install -y python3.12 python3.12-dev python3.12-venv && \
+    ln -s /usr/bin/python3.12 /usr/local/bin/python && \
+    ln -s /usr/bin/python3.12 /usr/local/bin/python3
+
+# 使用轻量级包管理工具 venv
+RUN python3.12 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN /opt/venv/bin/python -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple && \
+    /opt/venv/bin/pip install ovito -i https://pypi.tuna.tsinghua.edu.cn/simple && \
+    /opt/venv/bin/pip install ase -i https://pypi.tuna.tsinghua.edu.cn/simple && \
+    /opt/venv/bin/pip install pymatgen -i https://pypi.tuna.tsinghua.edu.cn/simple && \
+    /opt/venv/bin/pip install matplotlib -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 验证安装是否成功
+RUN python -c "import ovito; print('OVITO版本:', ovito.version)" && ldd --version | head -n 1
+
+# 设置后续指令的工作目录。
+WORKDIR /app
+
+# 指定容器创建时的默认命令。
+CMD ["bash"]
+```
+
+`CMD` 类似于 `RUN` 指令，用于运行程序，但二者运行的时间点不同:
+- `CMD` 在docker run 时运行（如果 Dockerfile 中如果存在多个 CMD 指令，仅最后一个生效。）。
+- `RUN` 是在 docker build 时运行。
+
+Dockerfile 的指令每执行一次都会在 docker 上新建一层，而过多无意义的层，会造成镜像膨胀过大。
+因此，推荐使用 `&&` 符号连接命令，减少创建镜像层数。
+
+在 Dockerfile 文件的存放目录下，执行构建命令：
+```
+docker build -t ovito_python_3.12:v1 . # （镜像名称:镜像标签）
+```
+
+### 直接构建自定义镜像（以 QMCPACK 为例）
+
+首先 `docker pull ghcr.io/qmcpack/ubuntu22-openmpi:latest` 拉取镜像，使用 `docker images` 获取镜像 ID。
+
+启动名为 qmcpack-4.1.0 的临时容器：
+```
+docker run -it --user root --name qmcpack-4.1.0 ghcr.io/qmcpack/ubuntu22-openmpi:latest /bin/bash
+```
+
+克隆 QMCPACK 源代码：
+```
+git clone https://github.com/QMCPACK/qmcpack.git
+```
+
+或者上传下载到本地的 QMCPACK 源代码并解压：
+```
+docker cp /mnt/e/qmcpack-4.1.0.tar.gz 04cc6d9f0259:/opt/
+docker attach 04cc6d9f0259
+cd /opt/
+tar -xzvf qmcpack-4.1.0.tar.gz
+```
+
+编译 QMCPACK
+```
+cd qmcpack-4.1.0/build
+cmake -GNinja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=mpicc -DCMAKE_CXX_COMPILER=mpicxx -DQMC_COMPLEX=0 ..  
+ninja
+ninja install
+```
+
+测试 QMCPACK是否编译成功：
+```
+ctest -VV -R deterministic-unit_test_wavefunction_trialwf
+ctest -L deterministic  
+```
+
+按住 `CTRL + P` 然后 `CTRL + Q` 脱离容器，
+使用命令 `docker commit qmcpack-4.1.0 qmcpack:v4.1.0` 重建镜像。
+
+然后 `docker save -o qmcpack-4.1.0.tar qmcpack:v4.1.0` 保存镜像为 `.tar` 文件。
+注意，镜像名称需与重建的镜像一致，生成的 `qmcpack-4.1.0.tar` 文件即为镜像归档文件。
+
+删除镜像命令是 `docker rmi [镜像 ID]`。
+
+---
+
+### 通过 apptainer 在计算节点上配置（以 QMCPACK 为例）
+
+上传 `.tar` 文件到集群，并修改权限：
+```
+chmod 777 qmcpack-4.1.0.tar 
+```
+
+通过 Apptainer 转换为 `.sif` 镜像：
+```
+module load apptainer
+apptainer build --sandbox qmcpack-sandbox docker-archive:///home/changruiwang-ICME/Software/qmcpack/qmcpack-4.1.0.tar
+apptainer build qmcpack.sif qmcpack-sandbox
+```
+
+由于已通过 Docker 编译 QMCPACK 并固化到镜像中​​，因此​​无需挂载。
+​直接运行 `apptainer exec qmcpack.sif qmcpack <参数>` 即可。
