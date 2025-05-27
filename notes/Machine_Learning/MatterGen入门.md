@@ -3,7 +3,22 @@
 
 ## 安装与使用
 
-首先克隆 MatterGen 仓库到本地：
+首先在 wsl 中启动 nvidia/cuda 的容器：
+```
+docker run -it --user root --name mattergen-1.0.0 d0117ee15b5f /bin/bash
+```
+
+并安装相关依赖：
+```
+apt update && apt upgrade -y
+apt-get update && apt-get upgrade -y
+apt-get install -y libcurl4-openssl-dev openssl
+apt-get install -y --reinstall git
+apt install -y python3.10 python3.10-venv python3.10-dev python3-pip git-lfs
+git lfs install
+```
+
+然后克隆 MatterGen 仓库到本地：
 ```
 git clone https://github.com/microsoft/mattergen.git
 cd mattergen
@@ -14,24 +29,37 @@ cd mattergen
 pip install uv
 uv venv .venv --python 3.10
 source .venv/bin/activate
-uv pip install -e .
-```
-
-注意，数据集和模型检查点通过 Git Large File Storage (LFS) 提供。
-因此在开始项目前需要确保 LFS 已安装：
-```
-git lfs --version
-```
-
-如果 LFS 未安装，可以使用以下命令安装：
-```
-sudo apt install git-lfs
-git lfs install
+export UV_HTTP_TIMEOUT=600
+uv pip install -e . 
 ```
 
 使用 Git LFS 下载模型检查点：
 ```
 git lfs pull -I checkpoints/
+```
+
+最后将固化全局环境变量：
+```
+echo 'export PATH="/opt/mattergen/.venv/bin:$PATH"' >> /etc/bash.bashrc
+echo 'export VIRTUAL_ENV="/opt/mattergen/.venv"' >> /etc/bash.bashrc
+```
+
+然后生成镜像：
+```
+docker commit mattergen-1.0.0 mattergen:v1.0.0
+docker save -o mattergen-1.0.0.tar mattergen:v1.0.0
+```
+
+上传 `mattergen-1.0.0.tar` 文件到集群，并修改权限：
+```
+chmod 777 mattergen-1.0.0.tar 
+```
+
+通过 Apptainer 将其转换为 `.sif` 镜像：
+```
+module load apptainer
+apptainer build --sandbox mattergen-sandbox docker-archive:///home/changruiwang-ICME/Software/mattergen/mattergen-1.0.0.tar
+apptainer build mattergen.sif mattergen-sandbox
 ```
 
 ## 随机生成

@@ -339,7 +339,7 @@ ctest -L deterministic
 chmod 777 qmcpack-4.1.0.tar 
 ```
 
-通过 Apptainer 转换为 `.sif` 镜像：
+通过 Apptainer 将其转换为 `.sif` 镜像：
 ```
 module load apptainer
 apptainer build --sandbox qmcpack-sandbox docker-archive:///home/changruiwang-ICME/Software/qmcpack/qmcpack-4.1.0.tar
