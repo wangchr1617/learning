@@ -46,3 +46,7 @@ export LD_LIBRARY_PATH=$INTEL_MPI_HOME/intel64/lib:$LD_LIBRARY_PATH
 <div align="left">
 <img src="./figures/install_002.png" width = "50%" />
 </div>
+
+## Docker 安装
+
+docker pull ghcr.io/deepmodeling/deepmd-kit:latest_cu11

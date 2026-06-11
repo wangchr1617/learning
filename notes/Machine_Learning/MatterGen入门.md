@@ -3,30 +3,30 @@
 
 ## 安装与使用
 
-首先在 wsl 中启动 nvidia/cuda 的容器：
+首先在 wsl 中启动 ubuntu 容器：
 ```
-docker run -it --user root --name mattergen-1.0.0 d0117ee15b5f /bin/bash
+docker run -it --user root --name mattergen-1.0.0 c42dedf797ba /bin/bash
 ```
 
 并安装相关依赖：
 ```
-apt update && apt upgrade -y
-apt-get update && apt-get upgrade -y
-apt-get install -y libcurl4-openssl-dev openssl
-apt-get install -y --reinstall git
-apt install -y python3.10 python3.10-venv python3.10-dev python3-pip git-lfs
+apt update
+apt install python3.10 python3.10-venv python3.10-dev 
+apt install python3-pip 
+apt install git-lfs
 git lfs install
 ```
 
 然后克隆 MatterGen 仓库到本地：
 ```
+cd /opt/
 git clone https://github.com/microsoft/mattergen.git
 cd mattergen
 ```
 
 使用 pip 和 uv 安装项目所需的环境依赖：
 ```
-pip install uv
+pip3 install uv
 uv venv .venv --python 3.10
 source .venv/bin/activate
 export UV_HTTP_TIMEOUT=600
@@ -66,6 +66,7 @@ apptainer build mattergen.sif mattergen-sandbox
 
 要从预训练的基础模型中采样，可以运行以下命令：
 ```
+source /opt/mattergen/.venv/bin/activate
 export MODEL_NAME=mattergen_base
 export RESULTS_PATH=results/
 mattergen-generate $RESULTS_PATH --pretrained-name=$MODEL_NAME --batch_size=16 --num_batches=1
